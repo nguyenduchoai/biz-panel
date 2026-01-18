@@ -1,0 +1,157 @@
+/**
+ * Dashboard Page Styles
+ */
+
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+.dashboard-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.page-title {
+    color: var(--color-text-primary) !important;
+    margin: 0 !important;
+}
+
+.page-subtitle {
+    font-size: 14px;
+    margin-top: var(--spacing-1);
+}
+
+.last-updated {
+    font-size: 12px;
+}
+
+/* Resource Grid */
+.resource-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-4);
+}
+
+@media (max-width: 1280px) {
+    .resource-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .resource-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dashboard Row */
+.dashboard-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-4);
+}
+
+@media (max-width: 1024px) {
+    .dashboard-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Network Card */
+.network-card {
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.network-card .semi-card-header {
+    border-bottom: 1px solid var(--color-border) !important;
+    padding: var(--spacing-4) !important;
+}
+
+.network-card .semi-card-header-wrapper .semi-card-header-title {
+    color: var(--color-text-primary) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.network-card .semi-card-body {
+    padding: var(--spacing-4) !important;
+}
+
+.network-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.network-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+/* System Info Card */
+.system-info-card {
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.system-info-card .semi-card-header {
+    border-bottom: 1px solid var(--color-border) !important;
+    padding: var(--spacing-4) !important;
+}
+
+.system-info-card .semi-card-header-wrapper .semi-card-header-title {
+    color: var(--color-text-primary) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.system-info-card .semi-card-body {
+    padding: var(--spacing-4) !important;
+}
+
+.system-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-4);
+}
+
+@media (max-width: 768px) {
+    .system-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.system-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+/* Recharts Tooltip Override */
+.recharts-tooltip-wrapper {
+    outline: none;
+}
+
+.recharts-default-tooltip {
+    background: var(--color-bg-elevated) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+    color: var(--color-text-primary) !important;
+}

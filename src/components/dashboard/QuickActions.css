@@ -1,0 +1,62 @@
+/**
+ * Quick Actions Styles
+ */
+
+.quick-actions-card {
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.quick-actions-card .semi-card-header {
+    border-bottom: 1px solid var(--color-border) !important;
+    padding: var(--spacing-4) !important;
+}
+
+.quick-actions-card .semi-card-header-wrapper .semi-card-header-title {
+    color: var(--color-text-primary) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.quick-actions-card .semi-card-body {
+    padding: var(--spacing-4) !important;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-3);
+}
+
+.quick-action-button {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--spacing-2) !important;
+    padding: var(--spacing-4) !important;
+    height: auto !important;
+    background: var(--color-bg-tertiary) !important;
+    border-radius: var(--radius-md) !important;
+    transition: all 0.2s ease !important;
+}
+
+.quick-action-button:hover {
+    background: var(--color-bg-elevated) !important;
+    transform: translateY(-2px);
+}
+
+.quick-action-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.quick-action-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.quick-action-button:hover .quick-action-label {
+    color: var(--color-text-primary);
+}

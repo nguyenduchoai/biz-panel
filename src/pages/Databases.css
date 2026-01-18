@@ -1,0 +1,111 @@
+/**
+ * Databases Page Styles
+ */
+
+.databases-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+}
+
+.databases-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.database-card {
+    background: var(--color-bg-secondary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--spacing-4) !important;
+}
+
+.database-card .semi-card-body {
+    padding: 0 !important;
+}
+
+.database-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border-muted);
+}
+
+.database-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.database-icon {
+    font-size: 28px;
+}
+
+.database-name {
+    font-size: 18px;
+    color: var(--color-text-primary);
+}
+
+.database-stats {
+    display: flex;
+    gap: var(--spacing-6);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border-muted);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.database-list-section {
+    padding: var(--spacing-4) 0;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+}
+
+.database-table {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+    overflow: hidden;
+}
+
+.database-table .semi-table-thead {
+    background: var(--color-bg-tertiary) !important;
+}
+
+.database-table .semi-table-tbody>tr {
+    background: var(--color-bg-secondary) !important;
+}
+
+.database-table .semi-table-tbody>tr:hover {
+    background: var(--color-bg-tertiary) !important;
+}
+
+.database-table .semi-table-row-cell {
+    border-color: var(--color-border-muted) !important;
+}
+
+.table-actions {
+    display: flex;
+    gap: var(--spacing-1);
+}
+
+.database-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-3);
+}
+
+.database-stopped {
+    padding: var(--spacing-6);
+    text-align: center;
+}

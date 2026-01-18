@@ -1,0 +1,327 @@
+/**
+ * Biz-Panel Global Styles
+ * Dark-first theme with Semi Design overrides
+ */
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* CSS Variables */
+:root {
+  /* Primary Colors */
+  --color-primary-50: #e6f0ff;
+  --color-primary-100: #b3d1ff;
+  --color-primary-200: #80b3ff;
+  --color-primary-300: #4d94ff;
+  --color-primary-400: #1a75ff;
+  --color-primary-500: #0066ff;
+  --color-primary-600: #0052cc;
+  --color-primary-700: #003d99;
+
+  /* Semantic Colors */
+  --color-success: #00c853;
+  --color-warning: #ffab00;
+  --color-error: #ff3d00;
+  --color-info: #17a2b8;
+
+  /* Background Colors */
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #21262d;
+  --color-bg-elevated: #2d333b;
+
+  /* Text Colors */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #6e7681;
+
+  /* Border Colors */
+  --color-border: #30363d;
+  --color-border-muted: #21262d;
+
+  /* Spacing */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 56px;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base Styles */
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-primary-500);
+  color: white;
+}
+
+/* Links */
+a {
+  color: var(--color-primary-500);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-400);
+}
+
+/* Code */
+code,
+pre {
+  font-family: var(--font-family-mono);
+}
+
+/* Semi Design Overrides for Dark Theme */
+body[theme-mode="dark"] {
+  --semi-color-primary: var(--color-primary-500);
+  --semi-color-primary-hover: var(--color-primary-400);
+  --semi-color-primary-active: var(--color-primary-600);
+  
+  --semi-color-bg-0: var(--color-bg-primary);
+  --semi-color-bg-1: var(--color-bg-secondary);
+  --semi-color-bg-2: var(--color-bg-tertiary);
+  --semi-color-bg-3: var(--color-bg-elevated);
+  
+  --semi-color-text-0: var(--color-text-primary);
+  --semi-color-text-1: var(--color-text-secondary);
+  --semi-color-text-2: var(--color-text-muted);
+  
+  --semi-color-border: var(--color-border);
+  
+  --semi-color-success: var(--color-success);
+  --semi-color-warning: var(--color-warning);
+  --semi-color-danger: var(--color-error);
+  --semi-color-info: var(--color-info);
+}
+
+/* Utility Classes */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+.text-info { color: var(--color-info); }
+
+.bg-primary { background-color: var(--color-bg-primary); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.bg-tertiary { background-color: var(--color-bg-tertiary); }
+.bg-elevated { background-color: var(--color-bg-elevated); }
+
+/* Card Styles */
+.card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Status Indicators */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.running {
+  background-color: var(--color-success);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.stopped {
+  background-color: var(--color-error);
+}
+
+.status-dot.updating {
+  background-color: var(--color-warning);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Page Transitions */
+.page-enter {
+  animation: fadeSlideIn 0.3s ease;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Grid Layouts */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.grid-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-4);
+}
+
+@media (max-width: 1280px) {
+  .grid-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Semi Design Specific Overrides */
+.semi-layout {
+  background: var(--color-bg-primary) !important;
+}
+
+.semi-layout-sider {
+  background: var(--color-bg-secondary) !important;
+  border-right: 1px solid var(--color-border) !important;
+}
+
+.semi-navigation {
+  background: transparent !important;
+}
+
+.semi-navigation-item {
+  color: var(--color-text-secondary) !important;
+  border-radius: var(--radius-md) !important;
+  margin: 2px 8px !important;
+}
+
+.semi-navigation-item:hover {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.semi-navigation-item-selected {
+  background: var(--color-primary-500) !important;
+  color: white !important;
+}
+
+.semi-card {
+  background: var(--color-bg-secondary) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.semi-input-wrapper,
+.semi-select {
+  background: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.semi-table-wrapper {
+  background: var(--color-bg-secondary) !important;
+}
+
+.semi-modal-content {
+  background: var(--color-bg-elevated) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.semi-tag {
+  border-radius: var(--radius-sm) !important;
+}
