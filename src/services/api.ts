@@ -382,6 +382,7 @@ export async function removeVolume(name: string, force = false): Promise<void> {
 export interface Website {
     id: string;
     domain: string;
+    port: number;
     aliases: string[];
     engine: 'nginx' | 'apache' | 'openlitespeed';
     projectType: string;
@@ -401,9 +402,20 @@ export async function getWebsites(): Promise<Website[]> {
     return apiFetch('/websites');
 }
 
+export async function getWebsite(id: string): Promise<Website> {
+    return apiFetch(`/websites/${id}`);
+}
+
 export async function createWebsite(data: Partial<Website>): Promise<Website> {
     return apiFetch('/websites', {
         method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function updateWebsite(id: string, data: Partial<Website>): Promise<Website> {
+    return apiFetch(`/websites/${id}`, {
+        method: 'PUT',
         body: JSON.stringify(data),
     });
 }
@@ -429,12 +441,24 @@ export async function getDatabases(): Promise<Database[]> {
     return apiFetch('/databases');
 }
 
+export async function getDatabase(id: string): Promise<Database> {
+    return apiFetch(`/databases/${id}`);
+}
+
 export async function createDatabase(data: Partial<Database>): Promise<Database> {
     return apiFetch('/databases', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 }
+
+export async function updateDatabase(id: string, data: Partial<Database>): Promise<Database> {
+    return apiFetch(`/databases/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
 
 export async function deleteDatabase(id: string): Promise<void> {
     return apiFetch(`/databases/${id}`, { method: 'DELETE' });

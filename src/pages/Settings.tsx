@@ -1,6 +1,5 @@
 /**
- * Settings Page
- * Panel configuration and user management
+ * Settings Page - System Configuration
  */
 import React, { useState } from 'react';
 import {
@@ -8,247 +7,204 @@ import {
     Card,
     Button,
     Form,
+    Toast,
+    Spin,
     Tabs,
     TabPane,
-    Table,
-    Tag,
-    Avatar,
-    Space,
-    Toast,
-    Modal,
     Divider,
+    Modal,
 } from '@douyinfe/semi-ui';
 import {
     IconSave,
-    IconUser,
+    IconRefresh,
+    IconSetting,
     IconLock,
     IconBell,
     IconCloud,
-    IconSetting,
-    IconPlus,
-    IconDelete,
-    IconEdit,
-    IconMail,
 } from '@douyinfe/semi-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getSettings, updateSettings, changePassword } from '../services/api';
 import './Settings.css';
 
 const { Title, Text } = Typography;
 
-interface User {
-    id: string;
-    username: string;
-    email: string;
-    role: 'admin' | 'user' | 'readonly';
-    status: 'active' | 'inactive';
-    lastLogin: string;
-    createdAt: string;
-}
-
-// Mock users
-const MOCK_USERS: User[] = [
-    {
-        id: '1',
-        username: 'admin',
-        email: 'admin@example.com',
-        role: 'admin',
-        status: 'active',
-        lastLogin: '2026-01-18T10:30:00Z',
-        createdAt: '2025-01-01',
-    },
-    {
-        id: '2',
-        username: 'developer',
-        email: 'dev@example.com',
-        role: 'user',
-        status: 'active',
-        lastLogin: '2026-01-17T15:00:00Z',
-        createdAt: '2025-06-15',
-    },
-    {
-        id: '3',
-        username: 'viewer',
-        email: 'viewer@example.com',
-        role: 'readonly',
-        status: 'inactive',
-        lastLogin: '2026-01-10T09:00:00Z',
-        createdAt: '2025-09-20',
-    },
-];
-
 const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
-    const [users, _setUsers] = useState<User[]>(MOCK_USERS);
-    const [userModalVisible, setUserModalVisible] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [saving, setSaving] = useState(false);
+    const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+    const queryClient = useQueryClient();
 
-    // Handle save settings
-    const handleSave = (section: string) => {
-        setSaving(true);
-        setTimeout(() => {
-            setSaving(false);
-            Toast.success(`${section} settings saved successfully`);
-        }, 1000);
-    };
+    const { data: settings, isLoading } = useQuery({
+        queryKey: ['settings'],
+        queryFn: getSettings,
+    });
 
-    // Format date
-    const formatDate = (date: string): string => {
-        return new Date(date).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
+    const updateMutation = useMutation({
+        mutationFn: updateSettings,
+        onSuccess: () => {
+            Toast.success('Settings saved successfully!');
+            queryClient.invalidateQueries({ queryKey: ['settings'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const passwordMutation = useMutation({
+        mutationFn: ({ current, newPass }: { current: string; newPass: string }) =>
+            changePassword(current, newPass),
+        onSuccess: () => {
+            Toast.success('Password changed successfully!');
+            setPasswordModalVisible(false);
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const handleGeneralSubmit = (values: Record<string, unknown>) => {
+        if (!settings) return;
+        updateMutation.mutate({
+            ...settings,
+            general: {
+                panelTitle: values.panelTitle as string,
+                panelPort: values.panelPort as number,
+                timezone: values.timezone as string,
+                language: values.language as string,
+                darkMode: values.darkMode as boolean,
+            },
         });
     };
 
-    // User columns
-    const userColumns = [
-        {
-            title: 'User',
-            dataIndex: 'username',
-            render: (username: string, record: User) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Avatar size="small" color="blue">
-                        {username.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <div>
-                        <Text style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                            {username}
-                        </Text>
-                        <div>
-                            <Text type="secondary" size="small">{record.email}</Text>
-                        </div>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            title: 'Role',
-            dataIndex: 'role',
-            width: 120,
-            render: (role: User['role']) => {
-                const colors: Record<string, 'red' | 'blue' | 'grey'> = { admin: 'red', user: 'blue', readonly: 'grey' };
-                const labels = { admin: 'Admin', user: 'User', readonly: 'Read Only' };
-                return <Tag color={colors[role]}>{labels[role]}</Tag>;
+    const handleSecuritySubmit = (values: Record<string, unknown>) => {
+        if (!settings) return;
+        updateMutation.mutate({
+            ...settings,
+            security: {
+                enableSSL: values.enableSSL as boolean,
+                sessionTimeout: values.sessionTimeout as number,
+                twoFactorEnabled: values.twoFactorEnabled as boolean,
+                bruteForceEnabled: values.bruteForceEnabled as boolean,
             },
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            width: 100,
-            render: (status: User['status']) => (
-                <Tag color={status === 'active' ? 'green' : 'grey'}>
-                    {status === 'active' ? '🟢 Active' : '⚫ Inactive'}
-                </Tag>
-            ),
-        },
-        {
-            title: 'Last Login',
-            dataIndex: 'lastLogin',
-            width: 150,
-            render: (date: string) => <Text type="secondary">{formatDate(date)}</Text>,
-        },
-        {
-            title: 'Actions',
-            dataIndex: 'actions',
-            width: 100,
-            render: (_: unknown, record: User) => (
-                <Space>
-                    <Button
-                        icon={<IconEdit />}
-                        theme="borderless"
-                        size="small"
-                        onClick={() => {
-                            setEditingUser(record);
-                            setUserModalVisible(true);
-                        }}
-                    />
-                    <Button icon={<IconDelete />} theme="borderless" type="danger" size="small" />
-                </Space>
-            ),
-        },
-    ];
+        });
+    };
+
+    const handleNotificationsSubmit = (values: Record<string, unknown>) => {
+        if (!settings) return;
+        updateMutation.mutate({
+            ...settings,
+            notifications: {
+                emailEnabled: values.emailEnabled as boolean,
+                smtpHost: values.smtpHost as string,
+                slackWebhook: values.slackWebhook as string,
+                discordWebhook: values.discordWebhook as string,
+            },
+        });
+    };
+
+    const handleBackupSubmit = (values: Record<string, unknown>) => {
+        if (!settings) return;
+        updateMutation.mutate({
+            ...settings,
+            backup: {
+                enabled: values.enabled as boolean,
+                schedule: values.schedule as string,
+                retentionDays: values.retentionDays as number,
+                backupDatabases: values.backupDatabases as boolean,
+                backupWebsites: values.backupWebsites as boolean,
+            },
+        });
+    };
+
+    const handlePasswordChange = (values: Record<string, unknown>) => {
+        const newPass = values.newPassword as string;
+        const confirmPass = values.confirmPassword as string;
+        if (newPass !== confirmPass) {
+            Toast.error('Passwords do not match');
+            return;
+        }
+        passwordMutation.mutate({
+            current: values.currentPassword as string,
+            newPass: newPass,
+        });
+    };
+
+    if (isLoading || !settings) {
+        return (
+            <div className="loading-container">
+                <Spin size="large" />
+            </div>
+        );
+    }
 
     return (
         <div className="settings-page page-enter">
-            {/* Header */}
             <div className="page-header">
                 <div>
-                    <Title heading={3} style={{ color: 'var(--color-text-primary)', margin: 0 }}>
-                        Settings
-                    </Title>
-                    <Text type="secondary">Panel configuration and user management</Text>
+                    <Title heading={3} className="page-title">⚙️ Settings</Title>
+                    <Text type="secondary" className="page-subtitle">
+                        Configure your panel settings
+                    </Text>
                 </div>
+                <Button
+                    icon={<IconRefresh />}
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['settings'] })}
+                >
+                    Refresh
+                </Button>
             </div>
 
-            {/* Settings Content */}
             <Card className="settings-card">
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    tabPosition="left"
-                    className="settings-tabs"
-                >
+                <Tabs activeKey={activeTab} onChange={setActiveTab}>
                     {/* General Settings */}
                     <TabPane
                         tab={<span><IconSetting style={{ marginRight: 8 }} />General</span>}
                         itemKey="general"
                     >
-                        <div className="settings-section">
-                            <Title heading={5}>Panel Settings</Title>
-                            <Form labelPosition="top" style={{ maxWidth: 500 }}>
-                                <Form.Input
-                                    field="panelTitle"
-                                    label="Panel Title"
-                                    initValue="Biz-Panel"
-                                    placeholder="Enter panel title"
-                                />
-                                <Form.Input
-                                    field="serverIP"
-                                    label="Server IP"
-                                    initValue="192.168.1.100"
-                                    placeholder="Server IP address"
-                                />
-                                <Form.Input
-                                    field="panelPort"
-                                    label="Panel Port"
-                                    initValue="8888"
-                                    placeholder="Panel port"
-                                    type="number"
-                                />
-                                <Form.Select
-                                    field="timezone"
-                                    label="Timezone"
-                                    initValue="UTC"
-                                    optionList={[
-                                        { value: 'UTC', label: 'UTC' },
-                                        { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (UTC+7)' },
-                                        { value: 'America/New_York', label: 'America/New York (UTC-5)' },
-                                        { value: 'Europe/London', label: 'Europe/London (UTC+0)' },
-                                    ]}
-                                />
-                                <Form.Select
-                                    field="language"
-                                    label="Language"
-                                    initValue="en"
-                                    optionList={[
-                                        { value: 'en', label: '🇺🇸 English' },
-                                        { value: 'vi', label: '🇻🇳 Tiếng Việt' },
-                                        { value: 'zh', label: '🇨🇳 中文' },
-                                    ]}
-                                />
-                                <Form.Switch field="darkMode" label="Dark Mode" initValue={true} />
+                        <Form
+                            onSubmit={handleGeneralSubmit}
+                            initValues={settings.general}
+                            labelPosition="left"
+                            labelWidth={150}
+                            className="settings-form"
+                        >
+                            <Form.Input
+                                field="panelTitle"
+                                label="Panel Title"
+                                placeholder="Biz-Panel"
+                            />
+                            <Form.InputNumber
+                                field="panelPort"
+                                label="Panel Port"
+                                min={1}
+                                max={65535}
+                            />
+                            <Form.Select
+                                field="timezone"
+                                label="Timezone"
+                                optionList={[
+                                    { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (UTC+7)' },
+                                    { value: 'UTC', label: 'UTC' },
+                                    { value: 'America/New_York', label: 'America/New York' },
+                                    { value: 'Europe/London', label: 'Europe/London' },
+                                ]}
+                            />
+                            <Form.Select
+                                field="language"
+                                label="Language"
+                                optionList={[
+                                    { value: 'en', label: '🇺🇸 English' },
+                                    { value: 'vi', label: '🇻🇳 Tiếng Việt' },
+                                ]}
+                            />
+                            <Form.Switch field="darkMode" label="Dark Mode" />
+                            <div className="form-actions">
                                 <Button
-                                    icon={<IconSave />}
+                                    htmlType="submit"
                                     theme="solid"
                                     type="primary"
-                                    loading={saving}
-                                    onClick={() => handleSave('General')}
-                                    style={{ marginTop: 16 }}
+                                    icon={<IconSave />}
+                                    loading={updateMutation.isPending}
                                 >
                                     Save Changes
                                 </Button>
-                            </Form>
-                        </div>
+                            </div>
+                        </Form>
                     </TabPane>
 
                     {/* Security Settings */}
@@ -256,98 +212,47 @@ const Settings: React.FC = () => {
                         tab={<span><IconLock style={{ marginRight: 8 }} />Security</span>}
                         itemKey="security"
                     >
-                        <div className="settings-section">
-                            <Title heading={5}>Security Settings</Title>
-                            <Form labelPosition="top" style={{ maxWidth: 500 }}>
-                                <Form.Switch
-                                    field="enableSSL"
-                                    label="Enable HTTPS"
-                                    initValue={true}
-                                    extraText="Redirect all HTTP traffic to HTTPS"
-                                />
-                                <Form.Input
-                                    field="sessionTimeout"
-                                    label="Session Timeout (minutes)"
-                                    initValue="30"
-                                    type="number"
-                                />
-                                <Form.Switch
-                                    field="twoFactor"
-                                    label="Two-Factor Authentication"
-                                    initValue={false}
-                                    extraText="Require 2FA for all admin users"
-                                />
-                                <Form.Input
-                                    field="allowedIPs"
-                                    label="Allowed IPs (Panel Access)"
-                                    placeholder="Leave empty for all IPs"
-                                    extraText="Comma-separated IP addresses or CIDR ranges"
-                                />
-                                <Form.Switch
-                                    field="bruteForce"
-                                    label="Brute Force Protection"
-                                    initValue={true}
-                                    extraText="Lock account after 5 failed login attempts"
-                                />
-                                <Divider />
-                                <Title heading={6}>Change Password</Title>
-                                <Form.Input
-                                    field="currentPassword"
-                                    label="Current Password"
-                                    mode="password"
-                                />
-                                <Form.Input
-                                    field="newPassword"
-                                    label="New Password"
-                                    mode="password"
-                                />
-                                <Form.Input
-                                    field="confirmPassword"
-                                    label="Confirm New Password"
-                                    mode="password"
-                                />
+                        <Form
+                            onSubmit={handleSecuritySubmit}
+                            initValues={settings.security}
+                            labelPosition="left"
+                            labelWidth={180}
+                            className="settings-form"
+                        >
+                            <Form.Switch field="enableSSL" label="Enable SSL (HTTPS)" />
+                            <Form.InputNumber
+                                field="sessionTimeout"
+                                label="Session Timeout (minutes)"
+                                min={5}
+                                max={1440}
+                            />
+                            <Form.Switch field="twoFactorEnabled" label="Two-Factor Auth (2FA)" />
+                            <Form.Switch field="bruteForceEnabled" label="Brute Force Protection" />
+
+                            <Divider margin={24} />
+
+                            <div className="password-section">
+                                <Text strong>Password</Text>
                                 <Button
-                                    icon={<IconSave />}
+                                    style={{ marginLeft: 16 }}
+                                    onClick={() => setPasswordModalVisible(true)}
+                                >
+                                    Change Password
+                                </Button>
+                            </div>
+
+                            <div className="form-actions">
+                                <Button
+                                    htmlType="submit"
                                     theme="solid"
                                     type="primary"
-                                    loading={saving}
-                                    onClick={() => handleSave('Security')}
-                                    style={{ marginTop: 16 }}
+                                    icon={<IconSave />}
+                                    loading={updateMutation.isPending}
                                 >
                                     Save Changes
                                 </Button>
-                            </Form>
-                        </div>
-                    </TabPane>
-
-                    {/* Users */}
-                    <TabPane
-                        tab={<span><IconUser style={{ marginRight: 8 }} />Users</span>}
-                        itemKey="users"
-                    >
-                        <div className="settings-section">
-                            <div className="section-header">
-                                <Title heading={5}>User Management</Title>
-                                <Button
-                                    icon={<IconPlus />}
-                                    theme="solid"
-                                    type="primary"
-                                    onClick={() => {
-                                        setEditingUser(null);
-                                        setUserModalVisible(true);
-                                    }}
-                                >
-                                    Add User
-                                </Button>
                             </div>
-                            <Table
-                                columns={userColumns}
-                                dataSource={users}
-                                pagination={false}
-                                rowKey="id"
-                                className="users-table"
-                            />
-                        </div>
+                        </Form>
                     </TabPane>
 
                     {/* Notifications */}
@@ -355,63 +260,42 @@ const Settings: React.FC = () => {
                         tab={<span><IconBell style={{ marginRight: 8 }} />Notifications</span>}
                         itemKey="notifications"
                     >
-                        <div className="settings-section">
-                            <Title heading={5}>Notification Settings</Title>
-                            <Form labelPosition="top" style={{ maxWidth: 500 }}>
-                                <Title heading={6}>Email</Title>
-                                <Form.Switch field="emailEnabled" label="Enable Email Notifications" initValue={true} />
-                                <Form.Input
-                                    field="smtpHost"
-                                    label="SMTP Host"
-                                    placeholder="smtp.gmail.com"
-                                />
-                                <Form.Input
-                                    field="smtpPort"
-                                    label="SMTP Port"
-                                    placeholder="587"
-                                    type="number"
-                                />
-                                <Form.Input field="smtpUser" label="SMTP Username" />
-                                <Form.Input field="smtpPassword" label="SMTP Password" mode="password" />
-                                <Button icon={<IconMail />} style={{ marginBottom: 24 }}>
-                                    Test Email
-                                </Button>
-
-                                <Divider />
-
-                                <Title heading={6}>Slack / Discord</Title>
-                                <Form.Input
-                                    field="slackWebhook"
-                                    label="Slack Webhook URL"
-                                    placeholder="https://hooks.slack.com/..."
-                                />
-                                <Form.Input
-                                    field="discordWebhook"
-                                    label="Discord Webhook URL"
-                                    placeholder="https://discord.com/api/webhooks/..."
-                                />
-
-                                <Divider />
-
-                                <Title heading={6}>Events</Title>
-                                <Form.Switch field="notifyDeploy" label="Deploy Success/Failure" initValue={true} />
-                                <Form.Switch field="notifySSL" label="SSL Expiring Soon" initValue={true} />
-                                <Form.Switch field="notifyBackup" label="Backup Complete" initValue={true} />
-                                <Form.Switch field="notifyResource" label="Critical Resource Usage" initValue={true} />
-                                <Form.Switch field="notifyBanned" label="IP Banned by Fail2ban" initValue={false} />
-
+                        <Form
+                            onSubmit={handleNotificationsSubmit}
+                            initValues={settings.notifications}
+                            labelPosition="left"
+                            labelWidth={150}
+                            className="settings-form"
+                        >
+                            <Form.Switch field="emailEnabled" label="Email Notifications" />
+                            <Form.Input
+                                field="smtpHost"
+                                label="SMTP Host"
+                                placeholder="smtp.gmail.com:587"
+                            />
+                            <Divider margin={16}>Webhooks</Divider>
+                            <Form.Input
+                                field="slackWebhook"
+                                label="Slack Webhook"
+                                placeholder="https://hooks.slack.com/..."
+                            />
+                            <Form.Input
+                                field="discordWebhook"
+                                label="Discord Webhook"
+                                placeholder="https://discord.com/api/webhooks/..."
+                            />
+                            <div className="form-actions">
                                 <Button
-                                    icon={<IconSave />}
+                                    htmlType="submit"
                                     theme="solid"
                                     type="primary"
-                                    loading={saving}
-                                    onClick={() => handleSave('Notification')}
-                                    style={{ marginTop: 16 }}
+                                    icon={<IconSave />}
+                                    loading={updateMutation.isPending}
                                 >
                                     Save Changes
                                 </Button>
-                            </Form>
-                        </div>
+                            </div>
+                        </Form>
                     </TabPane>
 
                     {/* Backup */}
@@ -419,130 +303,93 @@ const Settings: React.FC = () => {
                         tab={<span><IconCloud style={{ marginRight: 8 }} />Backup</span>}
                         itemKey="backup"
                     >
-                        <div className="settings-section">
-                            <Title heading={5}>Backup Settings</Title>
-                            <Form labelPosition="top" style={{ maxWidth: 500 }}>
-                                <Form.Select
-                                    field="backupDestination"
-                                    label="Backup Destination"
-                                    initValue="local"
-                                    optionList={[
-                                        { value: 'local', label: '💾 Local Storage' },
-                                        { value: 's3', label: '☁️ Amazon S3' },
-                                        { value: 'r2', label: '☁️ Cloudflare R2' },
-                                        { value: 'webdav', label: '📁 WebDAV' },
-                                    ]}
-                                />
-                                <Form.Input
-                                    field="backupPath"
-                                    label="Backup Path"
-                                    initValue="/backups"
-                                    placeholder="/backups"
-                                />
-                                <Form.Select
-                                    field="backupSchedule"
-                                    label="Automatic Backup"
-                                    initValue="daily"
-                                    optionList={[
-                                        { value: 'disabled', label: 'Disabled' },
-                                        { value: 'hourly', label: 'Every Hour' },
-                                        { value: 'daily', label: 'Daily at 2:00 AM' },
-                                        { value: 'weekly', label: 'Weekly on Sunday' },
-                                    ]}
-                                />
-                                <Form.Input
-                                    field="retentionDays"
-                                    label="Retention (days)"
-                                    initValue="30"
-                                    type="number"
-                                    extraText="Automatically delete backups older than this"
-                                />
-                                <Form.Switch field="compressBackup" label="Compress Backups" initValue={true} />
-                                <Form.Switch field="encryptBackup" label="Encrypt Backups" initValue={false} />
-
-                                <Divider />
-
-                                <Title heading={6}>What to Backup</Title>
-                                <Form.Switch field="backupDatabases" label="Databases" initValue={true} />
-                                <Form.Switch field="backupWebsites" label="Website Files" initValue={true} />
-                                <Form.Switch field="backupConfig" label="Panel Configuration" initValue={true} />
-                                <Form.Switch field="backupDocker" label="Docker Volumes" initValue={false} />
-
+                        <Form
+                            onSubmit={handleBackupSubmit}
+                            initValues={settings.backup}
+                            labelPosition="left"
+                            labelWidth={180}
+                            className="settings-form"
+                        >
+                            <Form.Switch field="enabled" label="Enable Automatic Backup" />
+                            <Form.Select
+                                field="schedule"
+                                label="Schedule"
+                                optionList={[
+                                    { value: '0 0 * * *', label: 'Daily at midnight' },
+                                    { value: '0 0 * * 0', label: 'Weekly (Sunday)' },
+                                    { value: '0 0 1 * *', label: 'Monthly (1st day)' },
+                                ]}
+                            />
+                            <Form.InputNumber
+                                field="retentionDays"
+                                label="Retention (days)"
+                                min={1}
+                                max={365}
+                            />
+                            <Divider margin={16}>What to Backup</Divider>
+                            <Form.Switch field="backupDatabases" label="Backup Databases" />
+                            <Form.Switch field="backupWebsites" label="Backup Websites" />
+                            <div className="form-actions">
                                 <Button
-                                    icon={<IconSave />}
+                                    htmlType="submit"
                                     theme="solid"
                                     type="primary"
-                                    loading={saving}
-                                    onClick={() => handleSave('Backup')}
-                                    style={{ marginTop: 16 }}
+                                    icon={<IconSave />}
+                                    loading={updateMutation.isPending}
                                 >
                                     Save Changes
                                 </Button>
-                            </Form>
-                        </div>
+                                <Button style={{ marginLeft: 8 }} onClick={() => Toast.info('Manual backup started...')}>
+                                    Backup Now
+                                </Button>
+                            </div>
+                        </Form>
                     </TabPane>
                 </Tabs>
             </Card>
 
-            {/* User Modal */}
+            {/* Password Change Modal */}
             <Modal
-                title={editingUser ? 'Edit User' : 'Add User'}
-                visible={userModalVisible}
-                onCancel={() => setUserModalVisible(false)}
+                title="Change Password"
+                visible={passwordModalVisible}
+                onCancel={() => setPasswordModalVisible(false)}
                 footer={null}
-                width={500}
+                width={400}
             >
-                <Form
-                    labelPosition="top"
-                    onSubmit={(_values) => {
-                        Toast.success(editingUser ? 'User updated' : 'User created');
-                        setUserModalVisible(false);
-                    }}
-                    initValues={editingUser || { role: 'user', status: 'active' }}
-                >
+                <Form onSubmit={handlePasswordChange} labelPosition="left" labelWidth={140}>
                     <Form.Input
-                        field="username"
-                        label="Username"
+                        field="currentPassword"
+                        label="Current Password"
+                        type="password"
                         rules={[{ required: true }]}
                     />
                     <Form.Input
-                        field="email"
-                        label="Email"
-                        type="email"
-                        rules={[{ required: true, type: 'email' }]}
-                    />
-                    {!editingUser && (
-                        <Form.Input
-                            field="password"
-                            label="Password"
-                            mode="password"
-                            rules={[{ required: true }]}
-                        />
-                    )}
-                    <Form.Select
-                        field="role"
-                        label="Role"
-                        optionList={[
-                            { value: 'admin', label: '👑 Admin' },
-                            { value: 'user', label: '👤 User' },
-                            { value: 'readonly', label: '👁️ Read Only' },
+                        field="newPassword"
+                        label="New Password"
+                        type="password"
+                        rules={[
+                            { required: true },
+                            { min: 8, message: 'Minimum 8 characters' },
                         ]}
                     />
-                    <Form.Select
-                        field="status"
-                        label="Status"
-                        optionList={[
-                            { value: 'active', label: '🟢 Active' },
-                            { value: 'inactive', label: '⚫ Inactive' },
-                        ]}
+                    <Form.Input
+                        field="confirmPassword"
+                        label="Confirm Password"
+                        type="password"
+                        rules={[{ required: true }]}
                     />
                     <div style={{ marginTop: 24, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setUserModalVisible(false)}>Cancel</Button>
-                            <Button theme="solid" type="primary" htmlType="submit">
-                                {editingUser ? 'Update' : 'Create'}
-                            </Button>
-                        </Space>
+                        <Button onClick={() => setPasswordModalVisible(false)} style={{ marginRight: 8 }}>
+                            Cancel
+                        </Button>
+                        <Button
+                            htmlType="submit"
+                            theme="solid"
+                            type="primary"
+                            loading={passwordMutation.isPending}
+                        >
+                            Change Password
+                        </Button>
                     </div>
                 </Form>
             </Modal>

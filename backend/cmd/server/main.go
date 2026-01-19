@@ -33,7 +33,7 @@ func main() {
 	adminPassHash := os.Getenv("ADMIN_PASS_HASH")
 	if adminPassHash == "" {
 		// Default password hash for "admin123" - CHANGE IN PRODUCTION
-		adminPassHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3.LRTvkd9cW6Qg.LuMSe"
+		adminPassHash = "$2a$10$JpCkpb4PGX4QmbEaqLO6RulAsCF4.hkiI557ujaLzuHUP4Shc/ht6"
 	}
 
 	auth.Initialize(auth.Config{
