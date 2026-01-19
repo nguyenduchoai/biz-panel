@@ -10,6 +10,7 @@ import { isAuthenticated } from './services/api';
 
 // Layout
 import { MainLayout } from './components/layout';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import {
@@ -72,44 +73,46 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LocaleProvider locale={en_US}>
-        <BrowserRouter>
-          <Routes>
-            {/* Public route - Login */}
-            <Route path="/login" element={<Login />} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <LocaleProvider locale={en_US}>
+          <BrowserRouter>
+            <Routes>
+              {/* Public route - Login */}
+              <Route path="/login" element={<Login />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="websites" element={<Websites />} />
-              <Route path="projects" element={<Projects />} />
-              <Route path="databases" element={<Databases />} />
-              <Route path="docker" element={<Docker />} />
-              <Route path="security" element={<Security />} />
-              <Route path="files" element={<Files />} />
-              <Route path="logs" element={<Logs />} />
-              <Route path="terminal" element={<Terminal />} />
-              <Route path="cron" element={<Cron />} />
-              <Route path="appstore" element={<AppStore />} />
-              <Route path="software" element={<Software />} />
-              <Route path="ssl" element={<SSL />} />
-              <Route path="php" element={<PHP />} />
-              <Route path="services" element={<Services />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </LocaleProvider>
-    </QueryClientProvider>
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="websites" element={<Websites />} />
+                <Route path="projects" element={<Projects />} />
+                <Route path="databases" element={<Databases />} />
+                <Route path="docker" element={<Docker />} />
+                <Route path="security" element={<Security />} />
+                <Route path="files" element={<Files />} />
+                <Route path="logs" element={<Logs />} />
+                <Route path="terminal" element={<Terminal />} />
+                <Route path="cron" element={<Cron />} />
+                <Route path="appstore" element={<AppStore />} />
+                <Route path="software" element={<Software />} />
+                <Route path="ssl" element={<SSL />} />
+                <Route path="php" element={<PHP />} />
+                <Route path="services" element={<Services />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </LocaleProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

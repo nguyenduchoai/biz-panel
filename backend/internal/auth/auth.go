@@ -277,7 +277,33 @@ func ChangePasswordHandler(c *gin.Context) {
 	// Update config (in memory)
 	config.AdminPassHash = newHash
 
-	// TODO: Persist to config file
+	// Persist to config file
+	configPath := os.Getenv("CONFIG_FILE")
+	if configPath == "" {
+		configPath = "/etc/biz-panel/config.yaml"
+	}
+	
+	// Update ADMIN_PASS_HASH environment for child processes
+	os.Setenv("ADMIN_PASS_HASH", newHash)
+
+	// Try to update config file if it exists
+	if _, err := os.Stat(configPath); err == nil {
+		// Read current config
+		data, err := os.ReadFile(configPath)
+		if err == nil {
+			content := string(data)
+			// Simple replacement for password_hash line
+			lines := strings.Split(content, "\n")
+			for i, line := range lines {
+				if strings.Contains(line, "password_hash:") {
+					lines[i] = "  password_hash: " + newHash
+					break
+				}
+			}
+			newContent := strings.Join(lines, "\n")
+			os.WriteFile(configPath, []byte(newContent), 0600)
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 }

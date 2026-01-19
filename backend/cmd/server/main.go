@@ -7,6 +7,7 @@ import (
 	"github.com/bizino-services/biz-panel-backend/internal/api"
 	"github.com/bizino-services/biz-panel-backend/internal/auth"
 	"github.com/bizino-services/biz-panel-backend/internal/docker"
+	"github.com/bizino-services/biz-panel-backend/internal/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -73,14 +74,16 @@ func main() {
 		// Health check (no auth)
 		apiGroup.GET("/health", api.HealthCheck)
 
-		// Auth routes (no auth required for login)
+		// Auth routes (no auth required for login, but rate limited)
 		authGroup := apiGroup.Group("/auth")
+		authGroup.Use(middleware.LoginRateLimiter()) // Rate limit: 5 attempts/minute
 		{
 			authGroup.POST("/login", auth.LoginHandler)
 		}
 
-		// Apply auth middleware to all protected routes
+		// Apply auth middleware and rate limiting to all protected routes
 		protected := apiGroup.Group("")
+		protected.Use(middleware.APIRateLimiter()) // Rate limit: 100 requests/minute
 		protected.Use(auth.AuthMiddleware())
 		{
 			// Auth routes (protected)
