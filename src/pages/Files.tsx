@@ -1,8 +1,8 @@
 /**
- * File Manager Page
- * Browse and manage server files with Monaco editor
+ * File Manager Page - Real API Integration
+ * Browse and manage server files
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Typography,
     Card,
@@ -11,420 +11,373 @@ import {
     Breadcrumb,
     Input,
     Modal,
-    Space,
-    Checkbox,
     Toast,
     Spin,
     Empty,
-    Dropdown,
+    Popconfirm,
 } from '@douyinfe/semi-ui';
 import {
     IconPlus,
-    IconUpload,
     IconRefresh,
     IconFolder,
     IconFile,
     IconArrowUp,
-    IconDownload,
     IconDelete,
-    IconMore,
-    IconCopy,
     IconEdit,
     IconSearch,
 } from '@douyinfe/semi-icons';
-import { getFiles } from '../services/mockApi';
-import type { FileItem } from '../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    listDirectory,
+    readFile,
+    writeFile,
+    createDirectory,
+    deletePath,
+    renamePath,
+    searchFiles,
+    type FileInfo,
+    formatBytes,
+} from '../services/api';
 import './Files.css';
 
 const { Title, Text } = Typography;
 
-// Format file size
-const formatSize = (bytes: number): string => {
-    if (bytes === 0) return '-';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
-
-// Format date
-const formatDate = (date: string): string => {
-    return new Date(date).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
-// Get file icon based on extension
-const getFileIcon = (item: FileItem): React.ReactNode => {
-    if (item.type === 'directory') {
-        return <IconFolder style={{ color: '#ffab00', fontSize: 18 }} />;
-    }
-
-    const ext = item.extension?.toLowerCase();
-    const iconColors: Record<string, string> = {
-        js: '#f7df1e',
-        ts: '#3178c6',
-        tsx: '#3178c6',
-        jsx: '#61dafb',
-        json: '#cbcb41',
-        html: '#e34c26',
-        css: '#563d7c',
-        php: '#777bb4',
-        py: '#3572a5',
-        env: '#4caf50',
-        conf: '#6e7681',
-        md: '#083fa1',
-        sh: '#89e051',
-    };
-
-    return <IconFile style={{ color: iconColors[ext || ''] || '#8b949e', fontSize: 18 }} />;
-};
-
 const Files: React.FC = () => {
-    const [files, setFiles] = useState<FileItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [currentPath, setCurrentPath] = useState('/home/admin/web/example.com');
-    const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [editorVisible, setEditorVisible] = useState(false);
-    const [editingFile, setEditingFile] = useState<FileItem | null>(null);
+    const [currentPath, setCurrentPath] = useState('/var/www');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
     const [fileContent, setFileContent] = useState('');
-    const [createModalVisible, setCreateModalVisible] = useState(false);
-    const [createType, setCreateType] = useState<'file' | 'folder'>('file');
-    const [newItemName, setNewItemName] = useState('');
+    const [editorVisible, setEditorVisible] = useState(false);
+    const [newFolderVisible, setNewFolderVisible] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [renameVisible, setRenameVisible] = useState(false);
+    const [newName, setNewName] = useState('');
+    const queryClient = useQueryClient();
 
-    // Fetch files
-    const fetchFiles = async () => {
-        setLoading(true);
-        try {
-            const data = await getFiles(currentPath);
-            setFiles(data);
-        } catch {
-            Toast.error('Failed to load files');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: dirData, isLoading, refetch } = useQuery({
+        queryKey: ['files', currentPath],
+        queryFn: () => listDirectory(currentPath),
+    });
 
-    useEffect(() => {
-        fetchFiles();
-    }, [currentPath]);
+    const { data: searchResults } = useQuery({
+        queryKey: ['fileSearch', currentPath, searchTerm],
+        queryFn: () => searchFiles(currentPath, searchTerm),
+        enabled: searchTerm.length > 2,
+    });
 
-    // Parse path for breadcrumb
-    const pathParts = currentPath.split('/').filter(Boolean);
-
-    // Navigate to path
-    const navigateTo = (path: string) => {
-        setCurrentPath(path);
-        setSelectedKeys([]);
-    };
-
-    // Go up one directory
-    const goUp = () => {
-        const parts = currentPath.split('/').filter(Boolean);
-        if (parts.length > 1) {
-            parts.pop();
-            navigateTo('/' + parts.join('/'));
-        }
-    };
-
-    // Handle file/folder click
-    const handleItemClick = (item: FileItem) => {
-        if (item.type === 'directory') {
-            navigateTo(item.path);
-        } else {
-            // Open file editor
-            setEditingFile(item);
-            setFileContent(`// File: ${item.name}\n// Generated preview\n\nconst example = {\n  name: "${item.name}",\n  size: ${item.size},\n  modified: "${item.modifiedAt}"\n};\n\nexport default example;`);
+    const readFileMutation = useMutation({
+        mutationFn: readFile,
+        onSuccess: (data) => {
+            setFileContent(data.content);
             setEditorVisible(true);
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const writeFileMutation = useMutation({
+        mutationFn: ({ path, content }: { path: string; content: string }) => writeFile(path, content),
+        onSuccess: () => {
+            Toast.success('File saved');
+            setEditorVisible(false);
+            queryClient.invalidateQueries({ queryKey: ['files', currentPath] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const createDirMutation = useMutation({
+        mutationFn: createDirectory,
+        onSuccess: () => {
+            Toast.success('Folder created');
+            setNewFolderVisible(false);
+            setNewFolderName('');
+            queryClient.invalidateQueries({ queryKey: ['files', currentPath] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deletePath,
+        onSuccess: () => {
+            Toast.success('Deleted');
+            queryClient.invalidateQueries({ queryKey: ['files', currentPath] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const renameMutation = useMutation({
+        mutationFn: ({ oldPath, newPath }: { oldPath: string; newPath: string }) => renamePath(oldPath, newPath),
+        onSuccess: () => {
+            Toast.success('Renamed');
+            setRenameVisible(false);
+            setSelectedFile(null);
+            queryClient.invalidateQueries({ queryKey: ['files', currentPath] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const files = searchTerm.length > 2 ? (searchResults?.results || []) : (dirData?.files || []);
+
+    const handleFileClick = (file: FileInfo) => {
+        if (file.isDirectory) {
+            setCurrentPath(file.path);
+            setSearchTerm('');
+        } else {
+            // Open file editor for text files
+            const textExtensions = ['txt', 'json', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'md', 'php', 'py', 'sh', 'yml', 'yaml', 'conf', 'log', 'env'];
+            if (textExtensions.includes(file.extension.toLowerCase())) {
+                setSelectedFile(file);
+                readFileMutation.mutate(file.path);
+            } else {
+                Toast.info('Binary files cannot be edited');
+            }
         }
     };
 
-    // Handle create
-    const handleCreate = () => {
-        if (!newItemName.trim()) {
-            Toast.error('Please enter a name');
+    const handleGoUp = () => {
+        if (dirData?.parent) {
+            setCurrentPath(dirData.parent);
+        }
+    };
+
+    const handleCreateFolder = () => {
+        if (!newFolderName.trim()) {
+            Toast.error('Please enter a folder name');
             return;
         }
-        Toast.success(`${createType === 'file' ? 'File' : 'Folder'} "${newItemName}" created`);
-        setCreateModalVisible(false);
-        setNewItemName('');
-        fetchFiles();
+        createDirMutation.mutate(`${currentPath}/${newFolderName}`);
     };
 
-    // Handle delete
-    const handleDelete = () => {
-        if (selectedKeys.length === 0) return;
-        Modal.confirm({
-            title: 'Delete Items',
-            content: `Are you sure you want to delete ${selectedKeys.length} item(s)?`,
-            onOk: () => {
-                Toast.success(`${selectedKeys.length} item(s) deleted`);
-                setSelectedKeys([]);
-                fetchFiles();
-            },
-        });
+    const handleRename = () => {
+        if (!selectedFile || !newName.trim()) return;
+        const newPath = currentPath + '/' + newName;
+        renameMutation.mutate({ oldPath: selectedFile.path, newPath });
     };
 
-    // Filter files by search
-    const filteredFiles = files.filter((file) =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const handleSaveFile = () => {
+        if (!selectedFile) return;
+        writeFileMutation.mutate({ path: selectedFile.path, content: fileContent });
+    };
 
-    // Table columns
+    const openRename = (file: FileInfo) => {
+        setSelectedFile(file);
+        setNewName(file.name);
+        setRenameVisible(true);
+    };
+
+    const pathParts = currentPath.split('/').filter(Boolean);
+
     const columns = [
-        {
-            title: '',
-            dataIndex: 'select',
-            width: 50,
-            render: (_: unknown, record: FileItem) => (
-                <Checkbox
-                    checked={selectedKeys.includes(record.path)}
-                    onChange={(e) => {
-                        const checked = e.target.checked;
-                        if (checked) {
-                            setSelectedKeys([...selectedKeys, record.path]);
-                        } else {
-                            setSelectedKeys(selectedKeys.filter((k) => k !== record.path));
-                        }
-                    }}
-                />
-            ),
-        },
         {
             title: 'Name',
             dataIndex: 'name',
-            render: (_: unknown, record: FileItem) => (
-                <div
-                    className="file-name-cell"
-                    onClick={() => handleItemClick(record)}
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                    {getFileIcon(record)}
-                    <Text style={{ color: 'var(--color-text-primary)' }}>{record.name}</Text>
+            key: 'name',
+            render: (name: string, record: FileInfo) => (
+                <div className="file-name" onClick={() => handleFileClick(record)}>
+                    {record.isDirectory ? <IconFolder size="large" /> : <IconFile size="large" />}
+                    <span className="file-name-text">{name}</span>
                 </div>
             ),
         },
         {
             title: 'Size',
             dataIndex: 'size',
+            key: 'size',
+            render: (size: number, record: FileInfo) => record.isDirectory ? '-' : formatBytes(size),
             width: 100,
-            render: (size: number) => (
-                <Text type="secondary">{formatSize(size)}</Text>
-            ),
-        },
-        {
-            title: 'Modified',
-            dataIndex: 'modifiedAt',
-            width: 150,
-            render: (date: string) => (
-                <Text type="secondary">{formatDate(date)}</Text>
-            ),
         },
         {
             title: 'Permissions',
             dataIndex: 'permissions',
+            key: 'permissions',
+            render: (perms: string) => <code>{perms}</code>,
             width: 120,
-            render: (perm: string) => (
-                <code style={{ color: 'var(--color-text-secondary)', fontSize: 12 }}>{perm}</code>
-            ),
         },
         {
-            title: '',
-            dataIndex: 'actions',
-            width: 50,
-            render: (_: unknown, record: FileItem) => (
-                <Dropdown
-                    trigger="click"
-                    position="bottomRight"
-                    render={
-                        <Dropdown.Menu>
-                            <Dropdown.Item icon={<IconDownload />}>Download</Dropdown.Item>
-                            {record.type === 'file' && (
-                                <Dropdown.Item icon={<IconEdit />} onClick={() => handleItemClick(record)}>
-                                    Edit
-                                </Dropdown.Item>
-                            )}
-                            <Dropdown.Item icon={<IconCopy />}>Copy</Dropdown.Item>
-                            <Dropdown.Divider />
-                            <Dropdown.Item icon={<IconDelete />} type="danger">
-                                Delete
-                            </Dropdown.Item>
-                        </Dropdown.Menu>
-                    }
-                >
-                    <Button icon={<IconMore />} theme="borderless" type="tertiary" />
-                </Dropdown>
+            title: 'Modified',
+            dataIndex: 'modTime',
+            key: 'modTime',
+            render: (time: number) => new Date(time * 1000).toLocaleString(),
+            width: 180,
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            width: 120,
+            render: (_: unknown, record: FileInfo) => (
+                <div className="table-actions">
+                    <Button
+                        icon={<IconEdit />}
+                        theme="borderless"
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            openRename(record);
+                        }}
+                    />
+                    <Popconfirm
+                        title={`Delete ${record.isDirectory ? 'folder' : 'file'}?`}
+                        onConfirm={() => deleteMutation.mutate(record.path)}
+                    >
+                        <Button
+                            icon={<IconDelete />}
+                            theme="borderless"
+                            size="small"
+                            type="danger"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </Popconfirm>
+                </div>
             ),
         },
     ];
 
+    if (isLoading) {
+        return (
+            <div className="loading-container">
+                <Spin size="large" />
+            </div>
+        );
+    }
+
     return (
         <div className="files-page page-enter">
-            {/* Header */}
             <div className="page-header">
                 <div>
-                    <Title heading={3} style={{ color: 'var(--color-text-primary)', margin: 0 }}>
-                        File Manager
-                    </Title>
-                    <Text type="secondary">Browse and manage server files</Text>
+                    <Title heading={3} className="page-title">📁 File Manager</Title>
+                    <Text type="secondary" className="page-subtitle">
+                        Browse and manage server files
+                    </Text>
                 </div>
-                <Space>
-                    <Button
-                        icon={<IconFolder />}
-                        onClick={() => {
-                            setCreateType('folder');
-                            setCreateModalVisible(true);
-                        }}
-                    >
+                <div className="header-actions">
+                    <Button icon={<IconRefresh />} onClick={() => refetch()}>Refresh</Button>
+                    <Button icon={<IconPlus />} theme="solid" type="primary" onClick={() => setNewFolderVisible(true)}>
                         New Folder
                     </Button>
-                    <Button
-                        icon={<IconPlus />}
-                        onClick={() => {
-                            setCreateType('file');
-                            setCreateModalVisible(true);
-                        }}
-                    >
-                        New File
-                    </Button>
-                    <Button icon={<IconUpload />} theme="solid" type="primary">
-                        Upload
-                    </Button>
-                </Space>
+                </div>
             </div>
 
-            {/* Main Content */}
-            <Card className="files-card">
-                {/* Toolbar */}
-                <div className="files-toolbar">
-                    <Space>
-                        <Button icon={<IconArrowUp />} onClick={goUp} disabled={pathParts.length <= 1}>
-                            Parent
-                        </Button>
-                        <Button icon={<IconRefresh />} onClick={fetchFiles}>
-                            Refresh
-                        </Button>
-                    </Space>
-
-                    <Input
-                        prefix={<IconSearch />}
-                        placeholder="Search files..."
-                        value={searchQuery}
-                        onChange={setSearchQuery}
-                        style={{ width: 240 }}
-                    />
-                </div>
-
-                {/* Breadcrumb */}
-                <div className="files-breadcrumb">
+            {/* Toolbar */}
+            <Card className="files-toolbar">
+                <div className="toolbar-left">
+                    <Button icon={<IconArrowUp />} onClick={handleGoUp} disabled={currentPath === '/'}>
+                        Up
+                    </Button>
                     <Breadcrumb>
-                        <Breadcrumb.Item onClick={() => navigateTo('/')}>
-                            <IconFolder style={{ marginRight: 4 }} />
-                            Root
-                        </Breadcrumb.Item>
-                        {pathParts.map((part, index) => (
+                        <Breadcrumb.Item onClick={() => setCurrentPath('/')}>Root</Breadcrumb.Item>
+                        {pathParts.map((part, idx) => (
                             <Breadcrumb.Item
-                                key={index}
-                                onClick={() => navigateTo('/' + pathParts.slice(0, index + 1).join('/'))}
+                                key={idx}
+                                onClick={() => setCurrentPath('/' + pathParts.slice(0, idx + 1).join('/'))}
                             >
                                 {part}
                             </Breadcrumb.Item>
                         ))}
                     </Breadcrumb>
                 </div>
-
-                {/* File Table */}
-                {loading ? (
-                    <div className="files-loading">
-                        <Spin size="large" />
-                    </div>
-                ) : filteredFiles.length === 0 ? (
-                    <Empty
-                        title="No files found"
-                        description={searchQuery ? 'Try a different search term' : 'This directory is empty'}
+                <div className="toolbar-right">
+                    <Input
+                        prefix={<IconSearch />}
+                        placeholder="Search files..."
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        showClear
+                        style={{ width: 250 }}
                     />
+                </div>
+            </Card>
+
+            {/* Files Table */}
+            <Card className="files-table-card">
+                {files.length === 0 ? (
+                    <Empty description="No files found" />
                 ) : (
                     <Table
                         columns={columns}
-                        dataSource={filteredFiles}
-                        pagination={false}
+                        dataSource={files}
                         rowKey="path"
-                        size="small"
+                        pagination={{ pageSize: 20 }}
                         className="files-table"
+                        onRow={(record: FileInfo | undefined) => ({
+                            onDoubleClick: () => record && handleFileClick(record),
+                        })}
                     />
-                )}
-
-                {/* Selected Actions */}
-                {selectedKeys.length > 0 && (
-                    <div className="files-selection-bar">
-                        <Text style={{ color: 'var(--color-text-primary)' }}>
-                            {selectedKeys.length} item(s) selected
-                        </Text>
-                        <Space>
-                            <Button icon={<IconDownload />}>Download</Button>
-                            <Button icon={<IconDelete />} type="danger" onClick={handleDelete}>
-                                Delete
-                            </Button>
-                        </Space>
-                    </div>
                 )}
             </Card>
 
             {/* File Editor Modal */}
             <Modal
-                title={`Edit: ${editingFile?.name || ''}`}
+                title={`Edit: ${selectedFile?.name || ''}`}
                 visible={editorVisible}
                 onCancel={() => setEditorVisible(false)}
+                width={800}
                 footer={
-                    <Space>
+                    <>
                         <Button onClick={() => setEditorVisible(false)}>Cancel</Button>
-                        <Button
-                            theme="solid"
-                            type="primary"
-                            onClick={() => {
-                                Toast.success('File saved successfully');
-                                setEditorVisible(false);
-                            }}
-                        >
+                        <Button theme="solid" type="primary" onClick={handleSaveFile} loading={writeFileMutation.isPending}>
                             Save
                         </Button>
-                    </Space>
+                    </>
                 }
-                width={800}
-                className="file-editor-modal"
             >
-                <div className="file-editor">
-                    <div className="editor-toolbar">
-                        <Text type="secondary">
-                            {editingFile?.path} • {formatSize(editingFile?.size || 0)}
-                        </Text>
-                    </div>
-                    <textarea
-                        className="code-editor"
-                        value={fileContent}
-                        onChange={(e) => setFileContent(e.target.value)}
-                        spellCheck={false}
-                    />
-                </div>
+                <textarea
+                    className="file-editor"
+                    value={fileContent}
+                    onChange={(e) => setFileContent(e.target.value)}
+                    style={{
+                        width: '100%',
+                        height: 400,
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        padding: 12,
+                        background: 'var(--color-bg-1)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 8,
+                        resize: 'vertical',
+                    }}
+                />
             </Modal>
 
-            {/* Create Modal */}
+            {/* New Folder Modal */}
             <Modal
-                title={createType === 'file' ? 'Create New File' : 'Create New Folder'}
-                visible={createModalVisible}
-                onCancel={() => setCreateModalVisible(false)}
-                onOk={handleCreate}
-                okText="Create"
+                title="Create New Folder"
+                visible={newFolderVisible}
+                onCancel={() => setNewFolderVisible(false)}
+                footer={
+                    <>
+                        <Button onClick={() => setNewFolderVisible(false)}>Cancel</Button>
+                        <Button theme="solid" type="primary" onClick={handleCreateFolder} loading={createDirMutation.isPending}>
+                            Create
+                        </Button>
+                    </>
+                }
             >
                 <Input
-                    placeholder={createType === 'file' ? 'filename.txt' : 'folder-name'}
-                    value={newItemName}
-                    onChange={setNewItemName}
-                    prefix={createType === 'file' ? <IconFile /> : <IconFolder />}
+                    value={newFolderName}
+                    onChange={setNewFolderName}
+                    placeholder="Folder name"
+                    prefix={<IconFolder />}
+                />
+            </Modal>
+
+            {/* Rename Modal */}
+            <Modal
+                title="Rename"
+                visible={renameVisible}
+                onCancel={() => setRenameVisible(false)}
+                footer={
+                    <>
+                        <Button onClick={() => setRenameVisible(false)}>Cancel</Button>
+                        <Button theme="solid" type="primary" onClick={handleRename} loading={renameMutation.isPending}>
+                            Rename
+                        </Button>
+                    </>
+                }
+            >
+                <Input
+                    value={newName}
+                    onChange={setNewName}
+                    placeholder="New name"
                 />
             </Modal>
         </div>

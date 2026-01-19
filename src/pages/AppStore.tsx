@@ -1,54 +1,89 @@
 /**
- * App Store Page
+ * App Store Page - Real API Integration
+ * One-click deploy applications from templates
  */
 import React, { useState } from 'react';
-import { Typography, Card, Button, Tag, Input, Spin, Modal, Form, Toast } from '@douyinfe/semi-ui';
-import { IconSearch, IconStar } from '@douyinfe/semi-icons';
-import { useQuery } from '@tanstack/react-query';
-import { getAppTemplates } from '../services/mockApi';
-import type { AppTemplate } from '../types';
+import {
+    Typography,
+    Card,
+    Button,
+    Tag,
+    Input,
+    Spin,
+    Modal,
+    Form,
+    Toast,
+    Empty,
+} from '@douyinfe/semi-ui';
+import { IconSearch, IconServer } from '@douyinfe/semi-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    getTemplates,
+    getTemplateCategories,
+    deployTemplate,
+    type AppTemplate,
+} from '../services/api';
 import './AppStore.css';
 
 const { Title, Text } = Typography;
 
 const AppStore: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [selectedApp, setSelectedApp] = useState<AppTemplate | null>(null);
     const [installModalVisible, setInstallModalVisible] = useState(false);
+    const queryClient = useQueryClient();
 
-    const { data: apps, isLoading } = useQuery({
-        queryKey: ['appTemplates'],
-        queryFn: getAppTemplates,
+    const { data: templatesData, isLoading } = useQuery({
+        queryKey: ['templates', selectedCategory, searchTerm],
+        queryFn: () => getTemplates(selectedCategory || undefined, searchTerm || undefined),
     });
 
-    const categories = [
-        { key: 'all', label: 'All' },
-        { key: 'featured', label: 'Featured' },
-        { key: 'cms', label: 'CMS' },
-        { key: 'database', label: 'Database' },
-        { key: 'devops', label: 'DevOps' },
-        { key: 'analytics', label: 'Analytics' },
-        { key: 'monitoring', label: 'Monitoring' },
-        { key: 'communication', label: 'Communication' },
-    ];
-
-    const filteredApps = apps?.filter((app) => {
-        const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            app.description.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || app.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+    const { data: categories = [] } = useQuery({
+        queryKey: ['templateCategories'],
+        queryFn: getTemplateCategories,
     });
+
+    const deployMutation = useMutation({
+        mutationFn: ({ id, name, env }: { id: string; name: string; env?: Record<string, string> }) =>
+            deployTemplate(id, name, undefined, env),
+        onSuccess: () => {
+            Toast.success(`${selectedApp?.name} deployed successfully!`);
+            setInstallModalVisible(false);
+            queryClient.invalidateQueries({ queryKey: ['containers'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const templates = templatesData?.templates || [];
 
     const handleInstall = (app: AppTemplate) => {
         setSelectedApp(app);
         setInstallModalVisible(true);
     };
 
-    const handleConfirmInstall = () => {
-        Toast.success(`${selectedApp?.name} installing...`);
-        setInstallModalVisible(false);
+    const handleConfirmInstall = (values: Record<string, unknown>) => {
+        if (!selectedApp) return;
+
+        const env: Record<string, string> = {};
+        // Collect environment variables from form
+        Object.entries(selectedApp.environment).forEach(([key]) => {
+            if (values[key]) {
+                env[key] = String(values[key]);
+            }
+        });
+
+        deployMutation.mutate({
+            id: selectedApp.id,
+            name: (values.containerName as string) || selectedApp.id,
+            env,
+        });
     };
+
+    const allCategories = [
+        { name: 'all', label: 'All', count: templatesData?.count || 0 },
+        ...categories.map(c => ({ name: c.name, label: c.name, count: c.count }))
+    ];
 
     if (isLoading) {
         return (
@@ -62,9 +97,9 @@ const AppStore: React.FC = () => {
         <div className="appstore-page page-enter">
             <div className="page-header">
                 <div>
-                    <Title heading={3} className="page-title">App Store</Title>
+                    <Title heading={3} className="page-title">🏪 App Store</Title>
                     <Text type="secondary" className="page-subtitle">
-                        One-click install popular applications
+                        One-click deploy popular applications
                     </Text>
                 </div>
             </div>
@@ -83,94 +118,80 @@ const AppStore: React.FC = () => {
 
             {/* Category Tabs */}
             <div className="category-tabs">
-                {categories.map((cat) => (
+                {allCategories.map((cat) => (
                     <Button
-                        key={cat.key}
-                        theme={selectedCategory === cat.key ? 'solid' : 'borderless'}
-                        type={selectedCategory === cat.key ? 'primary' : 'tertiary'}
-                        onClick={() => setSelectedCategory(cat.key)}
+                        key={cat.name}
+                        theme={selectedCategory === cat.name || (cat.name === 'all' && !selectedCategory) ? 'solid' : 'borderless'}
+                        type={selectedCategory === cat.name || (cat.name === 'all' && !selectedCategory) ? 'primary' : 'tertiary'}
+                        onClick={() => setSelectedCategory(cat.name === 'all' ? '' : cat.name)}
                         className="category-btn"
                     >
-                        {cat.label}
+                        {cat.label} {cat.count > 0 && `(${cat.count})`}
                     </Button>
                 ))}
             </div>
 
             {/* Apps Grid */}
-            <div className="apps-grid">
-                {filteredApps?.map((app) => (
-                    <Card key={app.id} className="app-card">
-                        <div className="app-icon">{app.icon}</div>
-                        <div className="app-info">
-                            <Text strong className="app-name">{app.name}</Text>
-                            <Text type="secondary" size="small" className="app-description">
-                                {app.description}
-                            </Text>
-                            <div className="app-meta">
-                                <span className="app-version">v{app.version}</span>
-                                <span className="app-rating">
-                                    <IconStar style={{ color: '#ffab00' }} size="small" />
-                                    {app.stars}
-                                </span>
+            {templates.length === 0 ? (
+                <Empty
+                    description="No applications found"
+                    style={{ marginTop: 60 }}
+                />
+            ) : (
+                <div className="apps-grid">
+                    {templates.map((app) => (
+                        <Card key={app.id} className="app-card">
+                            <div className="app-icon">{app.icon || '📦'}</div>
+                            <div className="app-info">
+                                <Text strong className="app-name">{app.name}</Text>
+                                <Text type="secondary" size="small" className="app-description">
+                                    {app.description}
+                                </Text>
+                                <div className="app-meta">
+                                    <span className="app-version">v{app.version}</span>
+                                    <span className="app-memory">
+                                        <IconServer size="small" /> {app.minMemory}MB
+                                    </span>
+                                </div>
+                                <div className="app-tags">
+                                    {app.tags?.slice(0, 2).map((tag) => (
+                                        <Tag key={tag} size="small">{tag}</Tag>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="app-tags">
-                                {app.tags.slice(0, 2).map((tag) => (
-                                    <Tag key={tag} size="small">{tag}</Tag>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="app-actions">
-                            {app.installed ? (
-                                <Button disabled size="small" className="installed-btn">
-                                    ✓ Installed
-                                </Button>
-                            ) : (
+                            <div className="app-actions">
                                 <Button
                                     theme="solid"
                                     type="primary"
                                     size="small"
                                     onClick={() => handleInstall(app)}
                                 >
-                                    Install
+                                    Deploy
                                 </Button>
-                            )}
-                        </div>
-                    </Card>
-                ))}
-            </div>
-
-            {filteredApps?.length === 0 && (
-                <div className="empty-state">
-                    <Text type="secondary">No applications found</Text>
+                            </div>
+                        </Card>
+                    ))}
                 </div>
             )}
 
             {/* Install Modal */}
             <Modal
-                title={`Install ${selectedApp?.name || ''}`}
+                title={`Deploy ${selectedApp?.name || ''}`}
                 visible={installModalVisible}
                 onCancel={() => setInstallModalVisible(false)}
-                footer={
-                    <>
-                        <Button onClick={() => setInstallModalVisible(false)}>Cancel</Button>
-                        <Button theme="solid" type="primary" onClick={handleConfirmInstall}>Install Now</Button>
-                    </>
-                }
-                width={500}
+                footer={null}
+                width={550}
             >
                 {selectedApp && (
                     <div className="install-modal-content">
                         <div className="install-app-header">
-                            <span className="install-app-icon">{selectedApp.icon}</span>
+                            <span className="install-app-icon">{selectedApp.icon || '📦'}</span>
                             <div>
                                 <Title heading={5}>{selectedApp.name}</Title>
                                 <Text type="secondary">{selectedApp.description}</Text>
                                 <div className="install-app-meta">
                                     <Tag>v{selectedApp.version}</Tag>
-                                    <span className="install-rating">
-                                        <IconStar style={{ color: '#ffab00' }} size="small" />
-                                        {selectedApp.stars} ({selectedApp.installs.toLocaleString()}+ installs)
-                                    </span>
+                                    <Tag color="blue">{selectedApp.image}</Tag>
                                 </div>
                             </div>
                         </div>
@@ -178,25 +199,46 @@ const AppStore: React.FC = () => {
                         <div className="install-requirements">
                             <Text strong>Requirements:</Text>
                             <div className="requirements-list">
-                                <Tag>Memory: {selectedApp.requirements.memory}</Tag>
-                                <Tag>Disk: {selectedApp.requirements.disk}</Tag>
+                                <Tag>Memory: {selectedApp.minMemory}MB+</Tag>
+                                {selectedApp.ports?.length > 0 && (
+                                    <Tag>Ports: {selectedApp.ports.join(', ')}</Tag>
+                                )}
                             </div>
                         </div>
 
-                        <Form layout="vertical">
-                            <Form.Select
-                                field="domain"
-                                label="Domain"
-                                placeholder="Select a domain"
-                                optionList={[
-                                    { value: 'app.example.com', label: 'app.example.com' },
-                                    { value: 'blog.example.com', label: 'blog.example.com' },
-                                ]}
+                        <Form onSubmit={handleConfirmInstall} labelPosition="left" labelWidth={120}>
+                            <Form.Input
+                                field="containerName"
+                                label="Container Name"
+                                placeholder={selectedApp.id}
+                                initValue={selectedApp.id}
+                                rules={[{ required: true }]}
                             />
-                            <Form.RadioGroup field="database" label="Database" initValue="new">
-                                <Form.Radio value="new">Create new database</Form.Radio>
-                                <Form.Radio value="existing">Use existing database</Form.Radio>
-                            </Form.RadioGroup>
+
+                            {/* Dynamic environment variables */}
+                            {Object.entries(selectedApp.environment || {}).map(([key, defaultValue]) => (
+                                <Form.Input
+                                    key={key}
+                                    field={key}
+                                    label={key.replace(/_/g, ' ')}
+                                    placeholder={defaultValue}
+                                    initValue={defaultValue}
+                                />
+                            ))}
+
+                            <div style={{ marginTop: 24, textAlign: 'right' }}>
+                                <Button onClick={() => setInstallModalVisible(false)} style={{ marginRight: 8 }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    htmlType="submit"
+                                    theme="solid"
+                                    type="primary"
+                                    loading={deployMutation.isPending}
+                                >
+                                    Deploy Now
+                                </Button>
+                            </div>
                         </Form>
                     </div>
                 )}
