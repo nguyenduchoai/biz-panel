@@ -180,8 +180,13 @@ const Cron: React.FC = () => {
                         onClick={() => openEditModal(record)}
                     />
                     <Popconfirm
-                        title="Delete this cronjob?"
+                        title="🗑️ Xoá Cronjob?"
+                        content="Tác vụ định kỳ này sẽ bị xoá vĩnh viễn."
                         onConfirm={() => deleteMutation.mutate(record.id)}
+                        position="left"
+                        okText="Xoá"
+                        cancelText="Huỷ"
+                        okType="danger"
                     >
                         <Button
                             icon={<IconDelete />}

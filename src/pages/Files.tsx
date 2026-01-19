@@ -215,8 +215,13 @@ const Files: React.FC = () => {
                         }}
                     />
                     <Popconfirm
-                        title={`Delete ${record.isDirectory ? 'folder' : 'file'}?`}
+                        title={`🗑️ Xoá ${record.isDirectory ? 'thư mục' : 'tệp'} này?`}
+                        content={record.isDirectory ? 'Tất cả nội dung bên trong sẽ bị xoá.' : 'Tệp này sẽ bị xoá vĩnh viễn.'}
                         onConfirm={() => deleteMutation.mutate(record.path)}
+                        position="left"
+                        okText="Xoá"
+                        cancelText="Huỷ"
+                        okType="danger"
                     >
                         <Button
                             icon={<IconDelete />}

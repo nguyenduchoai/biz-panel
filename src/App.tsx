@@ -5,7 +5,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LocaleProvider } from '@douyinfe/semi-ui';
-import en_US from '@douyinfe/semi-ui/lib/es/locale/source/en_US';
+import vi_VN from '@douyinfe/semi-ui/lib/es/locale/source/vi_VN';
 import { isAuthenticated } from './services/api';
 
 // Layout
@@ -75,7 +75,7 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <LocaleProvider locale={en_US}>
+        <LocaleProvider locale={vi_VN}>
           <BrowserRouter>
             <Routes>
               {/* Public route - Login */}

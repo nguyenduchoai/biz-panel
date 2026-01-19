@@ -24,6 +24,7 @@ import {
 } from '@douyinfe/semi-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSettings, updateSettings, changePassword } from '../services/api';
+import { useTranslation, type Language } from '../locales';
 import './Settings.css';
 
 const { Title, Text } = Typography;
@@ -32,6 +33,7 @@ const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
     const [passwordModalVisible, setPasswordModalVisible] = useState(false);
     const queryClient = useQueryClient();
+    const { t, language, setLanguage } = useTranslation();
 
     const { data: settings, isLoading } = useQuery({
         queryKey: ['settings'],
@@ -178,21 +180,33 @@ const Settings: React.FC = () => {
                                 field="timezone"
                                 label="Timezone"
                                 optionList={[
-                                    { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho Chi Minh (UTC+7)' },
-                                    { value: 'UTC', label: 'UTC' },
-                                    { value: 'America/New_York', label: 'America/New York' },
-                                    { value: 'Europe/London', label: 'Europe/London' },
+                                    { value: 'Asia/Ho_Chi_Minh', label: '🇻🇳 Asia/Ho_Chi_Minh (GMT+7)' },
+                                    { value: 'Asia/Bangkok', label: '🇹🇭 Asia/Bangkok (GMT+7)' },
+                                    { value: 'Asia/Singapore', label: '🇸🇬 Asia/Singapore (GMT+8)' },
+                                    { value: 'Asia/Tokyo', label: '🇯🇵 Asia/Tokyo (GMT+9)' },
+                                    { value: 'Asia/Shanghai', label: '🇨🇳 Asia/Shanghai (GMT+8)' },
+                                    { value: 'Asia/Seoul', label: '🇰🇷 Asia/Seoul (GMT+9)' },
+                                    { value: 'Europe/London', label: '🇬🇧 Europe/London (GMT+0)' },
+                                    { value: 'Europe/Paris', label: '🇫🇷 Europe/Paris (GMT+1)' },
+                                    { value: 'America/New_York', label: '🇺🇸 America/New_York (GMT-5)' },
+                                    { value: 'America/Los_Angeles', label: '🇺🇸 America/Los_Angeles (GMT-8)' },
+                                    { value: 'UTC', label: '🌐 UTC' },
                                 ]}
                             />
                             <Form.Select
                                 field="language"
-                                label="Language"
+                                label={t.settings.language}
+                                initValue={language}
                                 optionList={[
                                     { value: 'en', label: '🇺🇸 English' },
                                     { value: 'vi', label: '🇻🇳 Tiếng Việt' },
                                 ]}
+                                onChange={(value) => {
+                                    setLanguage(value as Language);
+                                    Toast.success(value === 'vi' ? 'Đã chuyển sang Tiếng Việt!' : 'Switched to English!');
+                                }}
                             />
-                            <Form.Switch field="darkMode" label="Dark Mode" />
+                            <Form.Switch field="darkMode" label={t.settings.darkMode} />
                             <div className="form-actions">
                                 <Button
                                     htmlType="submit"

@@ -8,7 +8,6 @@ import type { OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
 import {
     IconHome,
     IconGlobe,
-    IconApps,
     IconServer,
     IconSafe,
     IconFolder,
@@ -22,6 +21,7 @@ import {
     IconKey,
 } from '@douyinfe/semi-icons';
 import { useAppStore } from '../../stores/appStore';
+import { useTranslation } from '../../locales';
 import './Sidebar.css';
 
 const { Text } = Typography;
@@ -30,46 +30,46 @@ const Sidebar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { sidebarCollapsed } = useAppStore();
+    const { t } = useTranslation();
 
     const navItems = [
-        { itemKey: '/', text: 'Dashboard', icon: <IconHome /> },
+        { itemKey: '/', text: t.sidebar.dashboard, icon: <IconHome /> },
         {
             itemKey: 'infrastructure',
-            text: 'INFRASTRUCTURE',
+            text: t.sidebar.infrastructure,
             items: [
-                { itemKey: '/websites', text: 'Websites', icon: <IconGlobe /> },
-                { itemKey: '/projects', text: 'Projects', icon: <IconApps /> },
-                { itemKey: '/databases', text: 'Databases', icon: <IconServer /> },
-                { itemKey: '/docker', text: 'Docker', icon: <span className="sidebar-emoji">🐳</span> },
+                { itemKey: '/websites', text: t.sidebar.websites, icon: <IconGlobe /> },
+                { itemKey: '/databases', text: t.sidebar.databases, icon: <IconServer /> },
+                { itemKey: '/docker', text: t.sidebar.docker, icon: <span className="sidebar-emoji">🐳</span> },
             ]
         },
         {
             itemKey: 'software',
-            text: 'SOFTWARE',
+            text: t.sidebar.software,
             items: [
-                { itemKey: '/services', text: 'Services', icon: <span className="sidebar-emoji">🛠️</span> },
-                { itemKey: '/software', text: 'Software', icon: <IconCode /> },
-                { itemKey: '/php', text: 'PHP', icon: <span className="sidebar-emoji">🐘</span> },
-                { itemKey: '/ssl', text: 'SSL Certs', icon: <IconKey /> },
+                { itemKey: '/services', text: t.sidebar.services, icon: <span className="sidebar-emoji">🛠️</span> },
+                { itemKey: '/software', text: t.sidebar.softwareMenu, icon: <IconCode /> },
+                { itemKey: '/php', text: t.sidebar.php, icon: <span className="sidebar-emoji">🐘</span> },
+                { itemKey: '/ssl', text: t.sidebar.sslCerts, icon: <IconKey /> },
             ]
         },
         {
             itemKey: 'operations',
-            text: 'OPERATIONS',
+            text: t.sidebar.operations,
             items: [
-                { itemKey: '/security', text: 'Security', icon: <IconSafe /> },
-                { itemKey: '/files', text: 'Files', icon: <IconFolder /> },
-                { itemKey: '/logs', text: 'Logs', icon: <IconFile /> },
-                { itemKey: '/terminal', text: 'Terminal', icon: <IconTerminal /> },
-                { itemKey: '/cron', text: 'Cronjobs', icon: <IconClock /> },
+                { itemKey: '/security', text: t.sidebar.security, icon: <IconSafe /> },
+                { itemKey: '/files', text: t.sidebar.files, icon: <IconFolder /> },
+                { itemKey: '/logs', text: t.sidebar.logs, icon: <IconFile /> },
+                { itemKey: '/terminal', text: t.sidebar.terminal, icon: <IconTerminal /> },
+                { itemKey: '/cron', text: t.sidebar.cronjobs, icon: <IconClock /> },
             ]
         },
         {
             itemKey: 'extras',
-            text: 'EXTRAS',
+            text: t.sidebar.extras,
             items: [
-                { itemKey: '/appstore', text: 'App Store', icon: <IconGridView /> },
-                { itemKey: '/settings', text: 'Settings', icon: <IconSetting /> },
+                { itemKey: '/appstore', text: t.sidebar.appStore, icon: <IconGridView /> },
+                { itemKey: '/settings', text: t.sidebar.settings, icon: <IconSetting /> },
             ]
         },
     ];

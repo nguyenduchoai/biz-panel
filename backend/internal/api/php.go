@@ -298,7 +298,7 @@ func GetPHPConfig(c *gin.Context) {
 		MaxFileUploads:     getINIValue(configPath, "max_file_uploads", "20"),
 		DisplayErrors:      getINIValue(configPath, "display_errors", "Off"),
 		ErrorReporting:     getINIValue(configPath, "error_reporting", "E_ALL & ~E_DEPRECATED & ~E_STRICT"),
-		DateTimezone:       getINIValue(configPath, "date.timezone", "UTC"),
+		DateTimezone:       getINIValue(configPath, "date.timezone", "Asia/Ho_Chi_Minh"),
 		OpCacheEnable:      getINIValue(configPath, "opcache.enable", "1"),
 		OpCacheMemory:      getINIValue(configPath, "opcache.memory_consumption", "128"),
 	}

@@ -2,6 +2,58 @@
 
 All notable changes to Biz-Panel will be documented in this file.
 
+## [1.2.0] - 2026-01-19 - Internationalization & UX Enhancement
+
+### Added
+- **Internationalization (i18n) System**
+  - Vietnamese language support as default
+  - English language support
+  - Language switching in Settings → General
+  - Zustand-based language state with LocalStorage persistence
+  - Sidebar fully translated to Vietnamese
+  - Translation files: `src/locales/vi.ts`, `src/locales/en.ts`
+
+- **Real Website Creation Backend** (`backend/internal/api/websites.go`)
+  - Creates actual nginx virtual host configuration
+  - Creates document root with styled default index.html
+  - Creates MySQL/PostgreSQL database with user
+  - Creates FTP user account (optional)
+  - SSL setup via Let's Encrypt certbot
+  - Auto-reload nginx after creation
+
+- **aaPanel-Style Website Form**
+  - Auto-generate Website Path from domain name
+  - Auto-generate DB/FTP credentials from domain
+  - Conditional fields for FTP (username, password)
+  - Conditional fields for Database (name, user, password)
+  - Support for domain:port format
+  - Support for wildcard domains (*.domain.com)
+
+- **Coolify-Style Docker Modal**
+  - "New Resource" modal with categorized sections
+  - Applications (Git-based, Docker-based)
+  - Databases (One-click deploy MySQL, PostgreSQL, Redis, etc.)
+  - Services & Tools
+
+### Changed
+- Sidebar navigation: Removed "Projects" menu item
+- Delete Popconfirm: Added `position="left"` to prevent screen edge cutoff
+- Delete confirmations: Changed to Vietnamese text
+- Website creation: Now uses controlled Input for Website Path
+
+### Fixed
+- Popconfirm cutoff issue on right edge of screen
+- Unused imports and variables causing TypeScript warnings
+- Form.Input controlled value prop compatibility
+
+### UX Improvements
+- All delete confirmations now show emoji icon (🗑️)
+- Vietnamese language for all critical confirmations
+- Danger button styling for delete actions
+- Auto-password generation for DB and FTP accounts
+
+---
+
 ## [1.1.0] - 2026-01-18 - Advanced Services Management
 
 ### Added

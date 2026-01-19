@@ -120,6 +120,10 @@ func InstallSoftware(c *gin.Context) {
 			cmd = exec.Command("bash", "-c", "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs")
 		case "python311":
 			cmd = exec.Command("apt", "install", "-y", "python3.11", "python3.11-venv", "python3-pip")
+		case "go122":
+			cmd = exec.Command("bash", "-c", "wget -qO- https://go.dev/dl/go1.22.0.linux-amd64.tar.gz | tar -C /usr/local -xzf - && ln -sf /usr/local/go/bin/go /usr/local/bin/go")
+		case "ruby33":
+			cmd = exec.Command("apt", "install", "-y", "ruby", "ruby-dev", "ruby-bundler")
 		case "nginx":
 			cmd = exec.Command("apt", "install", "-y", "nginx")
 		case "apache":
@@ -128,8 +132,12 @@ func InstallSoftware(c *gin.Context) {
 			cmd = exec.Command("apt", "install", "-y", "mysql-server")
 		case "postgresql":
 			cmd = exec.Command("apt", "install", "-y", "postgresql", "postgresql-contrib")
+		case "mongodb":
+			cmd = exec.Command("bash", "-c", "apt install -y gnupg curl && curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && echo 'deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] http://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-7.0.list && apt update && apt install -y mongodb-org")
 		case "redis":
 			cmd = exec.Command("apt", "install", "-y", "redis-server")
+		case "memcached":
+			cmd = exec.Command("apt", "install", "-y", "memcached", "libmemcached-tools")
 		case "docker":
 			cmd = exec.Command("bash", "-c", "curl -fsSL https://get.docker.com | sh")
 		case "composer":
@@ -174,6 +182,12 @@ func UninstallSoftware(c *gin.Context) {
 		cmd = exec.Command("apt", "remove", "-y", "php8.2*")
 	case "nodejs20":
 		cmd = exec.Command("apt", "remove", "-y", "nodejs")
+	case "python311":
+		cmd = exec.Command("apt", "remove", "-y", "python3.11", "python3.11-venv")
+	case "go122":
+		cmd = exec.Command("bash", "-c", "rm -rf /usr/local/go && rm -f /usr/local/bin/go")
+	case "ruby33":
+		cmd = exec.Command("apt", "remove", "-y", "ruby", "ruby-dev")
 	case "nginx":
 		cmd = exec.Command("apt", "remove", "-y", "nginx")
 	case "apache":
@@ -182,12 +196,20 @@ func UninstallSoftware(c *gin.Context) {
 		cmd = exec.Command("apt", "remove", "-y", "mysql-server")
 	case "postgresql":
 		cmd = exec.Command("apt", "remove", "-y", "postgresql")
+	case "mongodb":
+		cmd = exec.Command("apt", "remove", "-y", "mongodb-org")
 	case "redis":
 		cmd = exec.Command("apt", "remove", "-y", "redis-server")
+	case "memcached":
+		cmd = exec.Command("apt", "remove", "-y", "memcached")
 	case "docker":
 		cmd = exec.Command("apt", "remove", "-y", "docker-ce", "docker-ce-cli")
+	case "composer":
+		cmd = exec.Command("rm", "-f", "/usr/local/bin/composer")
+	case "certbot":
+		cmd = exec.Command("apt", "remove", "-y", "certbot", "python3-certbot-nginx")
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown software"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown software: " + id})
 		return
 	}
 

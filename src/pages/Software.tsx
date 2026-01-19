@@ -344,9 +344,53 @@ const Software: React.FC = () => {
                                 <Text type="secondary">
                                     Manage extensions for {selectedSoftware.name}
                                 </Text>
-                                <Button style={{ marginTop: 8 }}>
-                                    Manage Extensions
-                                </Button>
+                                {selectedSoftware.id === 'php82' ? (
+                                    <Button
+                                        style={{ marginTop: 8 }}
+                                        type="primary"
+                                        theme="light"
+                                        onClick={() => {
+                                            setConfigModalVisible(false);
+                                            window.location.href = '/php';
+                                        }}
+                                    >
+                                        🐘 Manage PHP Extensions
+                                    </Button>
+                                ) : selectedSoftware.id === 'nodejs20' ? (
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="tertiary" size="small">
+                                            Use npm/yarn/pnpm to manage Node.js packages globally
+                                        </Text>
+                                        <pre style={{
+                                            marginTop: 8,
+                                            padding: 12,
+                                            background: 'var(--color-bg-3)',
+                                            borderRadius: 4,
+                                            fontSize: 12
+                                        }}>
+                                            npm install -g package-name
+                                        </pre>
+                                    </div>
+                                ) : selectedSoftware.id === 'python311' ? (
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text type="tertiary" size="small">
+                                            Use pip to manage Python packages
+                                        </Text>
+                                        <pre style={{
+                                            marginTop: 8,
+                                            padding: 12,
+                                            background: 'var(--color-bg-3)',
+                                            borderRadius: 4,
+                                            fontSize: 12
+                                        }}>
+                                            pip install package-name
+                                        </pre>
+                                    </div>
+                                ) : (
+                                    <Button style={{ marginTop: 8 }} disabled>
+                                        Manage Extensions
+                                    </Button>
+                                )}
                             </div>
                         )}
                     </div>

@@ -1,0 +1,308 @@
+/**
+ * English Translations for Biz-Panel
+ */
+export const en = {
+    // Sidebar Navigation
+    sidebar: {
+        dashboard: 'Dashboard',
+        infrastructure: 'INFRASTRUCTURE',
+        websites: 'Websites',
+        databases: 'Databases',
+        docker: 'Docker',
+        software: 'SOFTWARE',
+        services: 'Services',
+        softwareMenu: 'Software',
+        php: 'PHP',
+        sslCerts: 'SSL Certs',
+        operations: 'OPERATIONS',
+        security: 'Security',
+        files: 'Files',
+        logs: 'Logs',
+        terminal: 'Terminal',
+        cronjobs: 'Cronjobs',
+        extras: 'EXTRAS',
+        appStore: 'App Store',
+        settings: 'Settings',
+    },
+
+    // Common Actions
+    actions: {
+        create: 'Create',
+        edit: 'Edit',
+        delete: 'Delete',
+        save: 'Save',
+        cancel: 'Cancel',
+        confirm: 'Confirm',
+        refresh: 'Refresh',
+        search: 'Search',
+        filter: 'Filter',
+        install: 'Install',
+        uninstall: 'Uninstall',
+        start: 'Start',
+        stop: 'Stop',
+        restart: 'Restart',
+        add: 'Add',
+        remove: 'Remove',
+        view: 'View',
+        close: 'Close',
+        submit: 'Submit',
+        upload: 'Upload',
+        download: 'Download',
+        copy: 'Copy',
+        back: 'Back',
+        next: 'Next',
+        previous: 'Previous',
+        saveChanges: 'Save Changes',
+    },
+
+    // Status
+    status: {
+        running: 'Running',
+        stopped: 'Stopped',
+        error: 'Error',
+        pending: 'Pending',
+        success: 'Success',
+        failed: 'Failed',
+        installed: 'Installed',
+        notInstalled: 'Not Installed',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        active: 'Active',
+        inactive: 'Inactive',
+    },
+
+    // Dashboard
+    dashboard: {
+        title: 'Dashboard',
+        subtitle: 'System Overview',
+        systemStatus: 'System Status',
+        cpuUsage: 'CPU',
+        memoryUsage: 'Memory',
+        diskUsage: 'Disk',
+        uptime: 'Uptime',
+        quickActions: 'Quick Actions',
+        recentActivities: 'Recent Activities',
+        websites: 'Websites',
+        databases: 'Databases',
+        containers: 'Containers',
+        services: 'Services',
+    },
+
+    // Websites
+    websites: {
+        title: 'Websites',
+        subtitle: 'Manage your web applications and domains',
+        addWebsite: 'Add Website',
+        editWebsite: 'Edit Website',
+        deleteWebsite: 'Delete Website',
+        domain: 'Domain',
+        port: 'Port',
+        phpVersion: 'PHP Version',
+        ssl: 'SSL',
+        status: 'Status',
+        documentRoot: 'Document Root',
+        description: 'Description',
+        websitePath: 'Website Path',
+        enableSSL: 'Enable SSL (HTTPS)',
+        siteCategory: 'Site Category',
+        batchCreate: 'Batch Create',
+        createFromGit: 'Create from Git',
+    },
+
+    // Docker
+    docker: {
+        title: 'Docker',
+        subtitle: 'Project-based container groups with isolated networks',
+        createProject: 'Create Project',
+        addContainer: 'Add Container',
+        newResource: 'New Resource',
+        applications: 'Applications',
+        gitBased: 'Git Based',
+        dockerBased: 'Docker Based',
+        databases: 'Databases',
+        servicesTools: 'Services & Tools',
+        templates: 'One-Click Templates',
+        publicRepository: 'Public Repository',
+        privateRepository: 'Private Repository',
+        dockerfile: 'Dockerfile',
+        dockerCompose: 'Docker Compose',
+        dockerImage: 'Docker Image',
+        containerName: 'Container Name',
+        projectName: 'Project Name',
+        images: 'Images',
+        volumes: 'Volumes',
+        networks: 'Networks',
+        logs: 'Logs',
+        runningContainers: 'Running Containers',
+        stoppedContainers: 'Stopped Containers',
+    },
+
+    // Software
+    software: {
+        title: 'Software',
+        subtitle: 'Install and manage PHP, Node.js, databases, and more',
+        all: 'All Software',
+        runtimes: 'Runtimes',
+        webservers: 'Web Servers',
+        databases: 'Databases',
+        cache: 'Cache',
+        tools: 'Tools',
+        manageExtensions: 'Manage Extensions',
+        configuration: 'Configuration',
+        version: 'Version',
+        installedVersion: 'Installed Version',
+        availableVersions: 'Available Versions',
+    },
+
+    // PHP
+    php: {
+        title: 'PHP Management',
+        subtitle: 'Install and manage multiple PHP versions',
+        installed: 'Installed',
+        extensions: 'Extensions',
+        configuration: 'Configuration',
+        memoryLimit: 'Memory Limit',
+        maxExecutionTime: 'Max Execution Time',
+        postMaxSize: 'Post Max Size',
+        uploadMaxFilesize: 'Upload Max Filesize',
+        displayErrors: 'Display Errors',
+        timezone: 'Timezone',
+        opcacheEnable: 'OPcache Enable',
+    },
+
+    // Databases
+    databases: {
+        title: 'Databases',
+        subtitle: 'Manage MySQL, PostgreSQL and other databases',
+        createDatabase: 'Create Database',
+        databaseName: 'Database Name',
+        username: 'Username',
+        password: 'Password',
+        host: 'Host',
+        port: 'Port',
+        type: 'Type',
+        size: 'Size',
+        tables: 'Tables',
+        backup: 'Backup',
+        restore: 'Restore',
+    },
+
+    // Security
+    security: {
+        title: 'Security',
+        subtitle: 'Firewall, SSH keys and security settings',
+        firewall: 'Firewall',
+        sshKeys: 'SSH Keys',
+        ipWhitelist: 'IP Whitelist',
+        ipBlacklist: 'IP Blacklist',
+        securityLogs: 'Security Logs',
+        twoFactor: 'Two-Factor Authentication',
+        bruteForce: 'Brute Force Protection',
+    },
+
+    // Files
+    files: {
+        title: 'File Manager',
+        subtitle: 'Browse and manage files on your server',
+        upload: 'Upload',
+        newFolder: 'New Folder',
+        newFile: 'New File',
+        rename: 'Rename',
+        move: 'Move',
+        permissions: 'Permissions',
+        download: 'Download',
+        fileName: 'File Name',
+        fileSize: 'Size',
+        modified: 'Modified',
+        owner: 'Owner',
+    },
+
+    // Terminal
+    terminal: {
+        title: 'Terminal',
+        subtitle: 'Web-based terminal access',
+        clear: 'Clear',
+        fullscreen: 'Fullscreen',
+        reconnect: 'Reconnect',
+    },
+
+    // Cron
+    cron: {
+        title: 'Cronjobs',
+        subtitle: 'Manage scheduled tasks',
+        addCron: 'Add Cronjob',
+        command: 'Command',
+        schedule: 'Schedule',
+        lastRun: 'Last Run',
+        nextRun: 'Next Run',
+        output: 'Output',
+    },
+
+    // Settings
+    settings: {
+        title: 'Settings',
+        subtitle: 'Configure your panel settings',
+        general: 'General',
+        security: 'Security',
+        notifications: 'Notifications',
+        backup: 'Backup',
+        panelTitle: 'Panel Title',
+        panelPort: 'Panel Port',
+        timezone: 'Timezone',
+        language: 'Language',
+        darkMode: 'Dark Mode',
+        changePassword: 'Change Password',
+        currentPassword: 'Current Password',
+        newPassword: 'New Password',
+        confirmPassword: 'Confirm Password',
+    },
+
+    // App Store
+    appStore: {
+        title: 'App Store',
+        subtitle: 'One-click application installation',
+        featured: 'Featured',
+        categories: 'Categories',
+        installed: 'Installed',
+        popular: 'Popular',
+    },
+
+    // Services
+    services: {
+        title: 'Services',
+        subtitle: 'Manage system services',
+        runtime: 'Runtime',
+        webserver: 'Web Server',
+        database: 'Database',
+        cache: 'Cache',
+        queue: 'Queue',
+        tool: 'Tool',
+    },
+
+    // Messages
+    messages: {
+        confirmDelete: 'Are you sure you want to delete?',
+        deleteSuccess: 'Deleted successfully',
+        createSuccess: 'Created successfully',
+        updateSuccess: 'Updated successfully',
+        saveSuccess: 'Saved successfully',
+        installSuccess: 'Installed successfully',
+        error: 'An error occurred',
+        loading: 'Loading...',
+        noData: 'No data',
+        searchPlaceholder: 'Search...',
+        selectPlaceholder: 'Select...',
+    },
+
+    // Time
+    time: {
+        days: 'days',
+        hours: 'hours',
+        minutes: 'minutes',
+        seconds: 'seconds',
+        ago: 'ago',
+        justNow: 'Just now',
+    },
+};
+
+export default en;

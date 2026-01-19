@@ -136,8 +136,8 @@ func main() {
 			websites := protected.Group("/websites")
 			{
 				websites.GET("", api.ListWebsites)
-				websites.POST("", api.CreateWebsite)
-				websites.DELETE("/:id", api.DeleteWebsite)
+				websites.POST("", api.CreateWebsiteReal)
+				websites.DELETE("/:id", api.DeleteWebsiteReal)
 			}
 
 			// Databases

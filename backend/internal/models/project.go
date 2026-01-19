@@ -118,7 +118,7 @@ const (
 type CreateProjectRequest struct {
 	Name        string            `json:"name" binding:"required"`
 	Description string            `json:"description"`
-	Type        ProjectType       `json:"type" binding:"required"`
+	Type        ProjectType       `json:"type"` // Optional, defaults to "docker"
 	Repository  *GitRepository    `json:"repository,omitempty"`
 	Docker      *DockerConfig     `json:"docker,omitempty"`
 	Environment map[string]string `json:"environment"`

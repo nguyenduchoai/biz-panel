@@ -26,7 +26,7 @@ var (
 		General: models.GeneralSettings{
 			PanelTitle: "Biz-Panel",
 			PanelPort:  5173,
-			Timezone:   "UTC",
+			Timezone:   "Asia/Ho_Chi_Minh",
 			Language:   "en",
 			DarkMode:   true,
 		},

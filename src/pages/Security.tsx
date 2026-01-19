@@ -155,8 +155,13 @@ const Security: React.FC = () => {
             key: 'actions',
             render: (_: unknown, record: FirewallRule) => (
                 <Popconfirm
-                    title="Delete this rule?"
+                    title="🗑️ Xoá Rule?"
+                    content="Rule firewall này sẽ bị xoá."
                     onConfirm={() => deleteRuleMutation.mutate(record.id)}
+                    position="left"
+                    okText="Xoá"
+                    cancelText="Huỷ"
+                    okType="danger"
                 >
                     <Button icon={<IconDelete />} theme="borderless" size="small" type="danger" />
                 </Popconfirm>
@@ -238,8 +243,13 @@ const Security: React.FC = () => {
                         🔄 Renew
                     </Button>
                     <Popconfirm
-                        title="Delete this certificate?"
+                        title="🗑️ Xoá Certificate?"
+                        content="Chứng chỉ SSL này sẽ bị xoá khỏi hệ thống."
                         onConfirm={() => deleteCertMutation.mutate(record.id)}
+                        position="left"
+                        okText="Xoá"
+                        cancelText="Huỷ"
+                        okType="danger"
                     >
                         <Button icon={<IconDelete />} theme="borderless" size="small" type="danger" />
                     </Popconfirm>

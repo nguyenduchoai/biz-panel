@@ -203,9 +203,13 @@ const Databases: React.FC = () => {
                         onClick={() => openEdit(record)}
                     />
                     <Popconfirm
-                        title="Delete this database?"
-                        content="This action cannot be undone. All data will be lost."
+                        title="🗑️ Xoá Database?"
+                        content="⚠️ Thao tác này không thể hoàn tác. Tất cả dữ liệu sẽ bị mất vĩnh viễn!"
                         onConfirm={() => deleteMutation.mutate(record.id)}
+                        position="left"
+                        okText="Xoá"
+                        cancelText="Huỷ"
+                        okType="danger"
                     >
                         <Button
                             icon={<IconDelete />}

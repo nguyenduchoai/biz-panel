@@ -1,0 +1,308 @@
+/**
+ * Vietnamese Translations for Biz-Panel
+ */
+export const vi = {
+    // Sidebar Navigation
+    sidebar: {
+        dashboard: 'Bảng điều khiển',
+        infrastructure: 'HẠ TẦNG',
+        websites: 'Websites',
+        databases: 'Cơ sở dữ liệu',
+        docker: 'Docker',
+        software: 'PHẦN MỀM',
+        services: 'Dịch vụ',
+        softwareMenu: 'Phần mềm',
+        php: 'PHP',
+        sslCerts: 'Chứng chỉ SSL',
+        operations: 'VẬN HÀNH',
+        security: 'Bảo mật',
+        files: 'Quản lý tệp',
+        logs: 'Nhật ký',
+        terminal: 'Terminal',
+        cronjobs: 'Lịch tự động',
+        extras: 'TIỆN ÍCH',
+        appStore: 'Kho ứng dụng',
+        settings: 'Cài đặt',
+    },
+
+    // Common Actions
+    actions: {
+        create: 'Tạo mới',
+        edit: 'Chỉnh sửa',
+        delete: 'Xoá',
+        save: 'Lưu',
+        cancel: 'Huỷ',
+        confirm: 'Xác nhận',
+        refresh: 'Làm mới',
+        search: 'Tìm kiếm',
+        filter: 'Lọc',
+        install: 'Cài đặt',
+        uninstall: 'Gỡ cài đặt',
+        start: 'Khởi động',
+        stop: 'Dừng',
+        restart: 'Khởi động lại',
+        add: 'Thêm',
+        remove: 'Xoá',
+        view: 'Xem',
+        close: 'Đóng',
+        submit: 'Gửi',
+        upload: 'Tải lên',
+        download: 'Tải xuống',
+        copy: 'Sao chép',
+        back: 'Quay lại',
+        next: 'Tiếp theo',
+        previous: 'Trước đó',
+        saveChanges: 'Lưu thay đổi',
+    },
+
+    // Status
+    status: {
+        running: 'Đang chạy',
+        stopped: 'Đã dừng',
+        error: 'Lỗi',
+        pending: 'Đang xử lý',
+        success: 'Thành công',
+        failed: 'Thất bại',
+        installed: 'Đã cài đặt',
+        notInstalled: 'Chưa cài đặt',
+        enabled: 'Đã bật',
+        disabled: 'Đã tắt',
+        active: 'Hoạt động',
+        inactive: 'Không hoạt động',
+    },
+
+    // Dashboard
+    dashboard: {
+        title: 'Bảng điều khiển',
+        subtitle: 'Tổng quan hệ thống',
+        systemStatus: 'Trạng thái hệ thống',
+        cpuUsage: 'CPU',
+        memoryUsage: 'Bộ nhớ',
+        diskUsage: 'Ổ đĩa',
+        uptime: 'Thời gian hoạt động',
+        quickActions: 'Thao tác nhanh',
+        recentActivities: 'Hoạt động gần đây',
+        websites: 'Websites',
+        databases: 'Cơ sở dữ liệu',
+        containers: 'Container',
+        services: 'Dịch vụ',
+    },
+
+    // Websites
+    websites: {
+        title: 'Websites',
+        subtitle: 'Quản lý ứng dụng web và tên miền',
+        addWebsite: 'Thêm Website',
+        editWebsite: 'Chỉnh sửa Website',
+        deleteWebsite: 'Xoá Website',
+        domain: 'Tên miền',
+        port: 'Cổng',
+        phpVersion: 'Phiên bản PHP',
+        ssl: 'SSL',
+        status: 'Trạng thái',
+        documentRoot: 'Thư mục gốc',
+        description: 'Mô tả',
+        websitePath: 'Đường dẫn Website',
+        enableSSL: 'Bật SSL (HTTPS)',
+        siteCategory: 'Danh mục',
+        batchCreate: 'Tạo hàng loạt',
+        createFromGit: 'Tạo từ Git',
+    },
+
+    // Docker
+    docker: {
+        title: 'Docker',
+        subtitle: 'Quản lý container theo dự án với mạng riêng biệt',
+        createProject: 'Tạo dự án',
+        addContainer: 'Thêm Container',
+        newResource: 'Tài nguyên mới',
+        applications: 'Ứng dụng',
+        gitBased: 'Từ Git',
+        dockerBased: 'Từ Docker',
+        databases: 'Cơ sở dữ liệu',
+        servicesTools: 'Dịch vụ & Công cụ',
+        templates: 'Mẫu có sẵn',
+        publicRepository: 'Kho công khai',
+        privateRepository: 'Kho riêng tư',
+        dockerfile: 'Dockerfile',
+        dockerCompose: 'Docker Compose',
+        dockerImage: 'Docker Image',
+        containerName: 'Tên Container',
+        projectName: 'Tên dự án',
+        images: 'Images',
+        volumes: 'Volumes',
+        networks: 'Networks',
+        logs: 'Nhật ký',
+        runningContainers: 'Container đang chạy',
+        stoppedContainers: 'Container đã dừng',
+    },
+
+    // Software
+    software: {
+        title: 'Phần mềm',
+        subtitle: 'Cài đặt và quản lý PHP, Node.js, cơ sở dữ liệu và hơn thế nữa',
+        all: 'Tất cả',
+        runtimes: 'Runtime',
+        webservers: 'Web Server',
+        databases: 'Cơ sở dữ liệu',
+        cache: 'Cache',
+        tools: 'Công cụ',
+        manageExtensions: 'Quản lý Extensions',
+        configuration: 'Cấu hình',
+        version: 'Phiên bản',
+        installedVersion: 'Phiên bản đã cài',
+        availableVersions: 'Phiên bản có sẵn',
+    },
+
+    // PHP
+    php: {
+        title: 'Quản lý PHP',
+        subtitle: 'Cài đặt và quản lý nhiều phiên bản PHP',
+        installed: 'Đã cài đặt',
+        extensions: 'Extensions',
+        configuration: 'Cấu hình',
+        memoryLimit: 'Giới hạn bộ nhớ',
+        maxExecutionTime: 'Thời gian thực thi tối đa',
+        postMaxSize: 'Kích thước POST tối đa',
+        uploadMaxFilesize: 'Kích thước tải lên tối đa',
+        displayErrors: 'Hiển thị lỗi',
+        timezone: 'Múi giờ',
+        opcacheEnable: 'Bật OPcache',
+    },
+
+    // Databases
+    databases: {
+        title: 'Cơ sở dữ liệu',
+        subtitle: 'Quản lý MySQL, PostgreSQL và các cơ sở dữ liệu khác',
+        createDatabase: 'Tạo cơ sở dữ liệu',
+        databaseName: 'Tên CSDL',
+        username: 'Tên người dùng',
+        password: 'Mật khẩu',
+        host: 'Máy chủ',
+        port: 'Cổng',
+        type: 'Loại',
+        size: 'Kích thước',
+        tables: 'Bảng',
+        backup: 'Sao lưu',
+        restore: 'Khôi phục',
+    },
+
+    // Security
+    security: {
+        title: 'Bảo mật',
+        subtitle: 'Firewall, SSH keys và thiết lập bảo mật',
+        firewall: 'Tường lửa',
+        sshKeys: 'SSH Keys',
+        ipWhitelist: 'Danh sách IP được phép',
+        ipBlacklist: 'Danh sách IP bị chặn',
+        securityLogs: 'Nhật ký bảo mật',
+        twoFactor: 'Xác thực 2 yếu tố',
+        bruteForce: 'Bảo vệ tấn công brute-force',
+    },
+
+    // Files
+    files: {
+        title: 'Quản lý tệp',
+        subtitle: 'Duyệt và quản lý tệp trên máy chủ',
+        upload: 'Tải lên',
+        newFolder: 'Thư mục mới',
+        newFile: 'Tệp mới',
+        rename: 'Đổi tên',
+        move: 'Di chuyển',
+        permissions: 'Quyền truy cập',
+        download: 'Tải xuống',
+        fileName: 'Tên tệp',
+        fileSize: 'Kích thước',
+        modified: 'Sửa đổi',
+        owner: 'Chủ sở hữu',
+    },
+
+    // Terminal
+    terminal: {
+        title: 'Terminal',
+        subtitle: 'Web-based terminal access',
+        clear: 'Xoá màn hình',
+        fullscreen: 'Toàn màn hình',
+        reconnect: 'Kết nối lại',
+    },
+
+    // Cron
+    cron: {
+        title: 'Lịch tự động',
+        subtitle: 'Quản lý các tác vụ định kỳ',
+        addCron: 'Thêm Cronjob',
+        command: 'Lệnh',
+        schedule: 'Lịch trình',
+        lastRun: 'Lần chạy cuối',
+        nextRun: 'Lần chạy tiếp',
+        output: 'Kết quả',
+    },
+
+    // Settings
+    settings: {
+        title: 'Cài đặt',
+        subtitle: 'Cấu hình panel của bạn',
+        general: 'Chung',
+        security: 'Bảo mật',
+        notifications: 'Thông báo',
+        backup: 'Sao lưu',
+        panelTitle: 'Tiêu đề Panel',
+        panelPort: 'Cổng Panel',
+        timezone: 'Múi giờ',
+        language: 'Ngôn ngữ',
+        darkMode: 'Chế độ tối',
+        changePassword: 'Đổi mật khẩu',
+        currentPassword: 'Mật khẩu hiện tại',
+        newPassword: 'Mật khẩu mới',
+        confirmPassword: 'Xác nhận mật khẩu',
+    },
+
+    // App Store
+    appStore: {
+        title: 'Kho ứng dụng',
+        subtitle: 'Cài đặt ứng dụng một chạm',
+        featured: 'Nổi bật',
+        categories: 'Danh mục',
+        installed: 'Đã cài đặt',
+        popular: 'Phổ biến',
+    },
+
+    // Services
+    services: {
+        title: 'Dịch vụ',
+        subtitle: 'Quản lý các dịch vụ hệ thống',
+        runtime: 'Runtime',
+        webserver: 'Web Server',
+        database: 'Cơ sở dữ liệu',
+        cache: 'Cache',
+        queue: 'Hàng đợi',
+        tool: 'Công cụ',
+    },
+
+    // Messages
+    messages: {
+        confirmDelete: 'Bạn có chắc chắn muốn xoá?',
+        deleteSuccess: 'Xoá thành công',
+        createSuccess: 'Tạo thành công',
+        updateSuccess: 'Cập nhật thành công',
+        saveSuccess: 'Lưu thành công',
+        installSuccess: 'Cài đặt thành công',
+        error: 'Có lỗi xảy ra',
+        loading: 'Đang tải...',
+        noData: 'Không có dữ liệu',
+        searchPlaceholder: 'Tìm kiếm...',
+        selectPlaceholder: 'Chọn...',
+    },
+
+    // Time
+    time: {
+        days: 'ngày',
+        hours: 'giờ',
+        minutes: 'phút',
+        seconds: 'giây',
+        ago: 'trước',
+        justNow: 'Vừa xong',
+    },
+};
+
+export default vi;

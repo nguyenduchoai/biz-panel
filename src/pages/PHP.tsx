@@ -29,45 +29,70 @@ import './PHP.css';
 
 const { Title, Text } = Typography;
 
-// API functions
+// API functions - with auth header
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
+function getAuthHeaders(): HeadersInit {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    };
+}
+
 async function fetchPHPVersions() {
-    const res = await fetch(`${API_URL}/php/versions`);
-    return res.json();
+    const res = await fetch(`${API_URL}/php/versions`, {
+        headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
 }
 
 async function installPHPVersion(version: string) {
-    const res = await fetch(`${API_URL}/php/versions/${version}/install`, { method: 'POST' });
+    const res = await fetch(`${API_URL}/php/versions/${version}/install`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
 async function uninstallPHPVersion(version: string) {
-    const res = await fetch(`${API_URL}/php/versions/${version}/uninstall`, { method: 'POST' });
+    const res = await fetch(`${API_URL}/php/versions/${version}/uninstall`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
 async function controlPHP(version: string, action: string) {
-    const res = await fetch(`${API_URL}/php/versions/${version}/${action}`, { method: 'POST' });
+    const res = await fetch(`${API_URL}/php/versions/${version}/${action}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
 async function fetchExtensions(version: string) {
-    const res = await fetch(`${API_URL}/php/versions/${version}/extensions`);
-    return res.json();
+    const res = await fetch(`${API_URL}/php/versions/${version}/extensions`, {
+        headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
 }
 
 async function toggleExtension(version: string, ext: string, enabled: boolean) {
     const res = await fetch(`${API_URL}/php/versions/${version}/extensions/${ext}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ enabled }),
     });
     return res.json();
 }
 
 async function fetchPHPConfig(version: string) {
-    const res = await fetch(`${API_URL}/php/versions/${version}/config`);
+    const res = await fetch(`${API_URL}/php/versions/${version}/config`, {
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
@@ -101,7 +126,7 @@ const PHP: React.FC = () => {
     });
 
     // Fetch extensions for selected version
-    const { data: extensions = [] } = useQuery({
+    const { data: extensions = [], isLoading: extensionsLoading } = useQuery({
         queryKey: ['php-extensions', selectedVersion?.version],
         queryFn: () => selectedVersion ? fetchExtensions(selectedVersion.version) : [],
         enabled: !!selectedVersion && extModalVisible,
@@ -353,23 +378,34 @@ const PHP: React.FC = () => {
                 width={700}
                 footer={null}
             >
-                <div className="extensions-grid">
-                    {extensions.map((ext: PHPExtension) => (
-                        <div key={ext.name} className="extension-item">
-                            <div className="ext-info">
-                                <Text strong>{ext.name}</Text>
-                                <Text type="secondary" size="small">{ext.description}</Text>
+                {extensionsLoading ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                        <Spin size="large" />
+                        <Text style={{ display: 'block', marginTop: 16 }}>Loading extensions...</Text>
+                    </div>
+                ) : extensions.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                        <Text type="secondary">No extensions found</Text>
+                    </div>
+                ) : (
+                    <div className="extensions-grid">
+                        {extensions.map((ext: PHPExtension) => (
+                            <div key={ext.name} className="extension-item">
+                                <div className="ext-info">
+                                    <Text strong>{ext.name}</Text>
+                                    <Text type="secondary" size="small">{ext.description}</Text>
+                                </div>
+                                <Switch
+                                    checked={ext.enabled}
+                                    disabled={!ext.installed}
+                                    onChange={(checked) => {
+                                        toggleExtMutation.mutate({ ext: ext.name, enabled: checked });
+                                    }}
+                                />
                             </div>
-                            <Switch
-                                checked={ext.enabled}
-                                disabled={!ext.installed}
-                                onChange={(checked) => {
-                                    toggleExtMutation.mutate({ ext: ext.name, enabled: checked });
-                                }}
-                            />
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </Modal>
 
             {/* Config Modal */}
@@ -417,7 +453,21 @@ const PHP: React.FC = () => {
                     </div>
                     <div className="config-row">
                         <Text>Timezone</Text>
-                        <Input defaultValue={config['date.timezone'] || 'UTC'} style={{ width: 200 }} />
+                        <select
+                            defaultValue={config['date.timezone'] || 'Asia/Ho_Chi_Minh'}
+                            style={{ width: 200, padding: '8px', borderRadius: 4, background: 'var(--color-bg-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-0)' }}
+                        >
+                            <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option>
+                            <option value="Asia/Bangkok">Asia/Bangkok (GMT+7)</option>
+                            <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                            <option value="Asia/Shanghai">Asia/Shanghai (GMT+8)</option>
+                            <option value="Europe/London">Europe/London (GMT+0)</option>
+                            <option value="Europe/Paris">Europe/Paris (GMT+1)</option>
+                            <option value="America/New_York">America/New_York (GMT-5)</option>
+                            <option value="America/Los_Angeles">America/Los_Angeles (GMT-8)</option>
+                            <option value="UTC">UTC</option>
+                        </select>
                     </div>
                 </div>
             </Modal>

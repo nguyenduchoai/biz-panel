@@ -33,8 +33,16 @@ import './Services.css';
 
 const { Title, Text } = Typography;
 
-// API
+// API functions with auth headers
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+function getAuthHeaders(): HeadersInit {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    };
+}
 
 interface ManagedService {
     id: string;
@@ -70,28 +78,42 @@ interface ServiceConfig {
 
 async function fetchServices(type?: string) {
     const params = type && type !== 'all' ? `?type=${type}` : '';
-    const res = await fetch(`${API_URL}/services${params}`);
-    return res.json();
+    const res = await fetch(`${API_URL}/services${params}`, {
+        headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    return data || { services: [] };
 }
 
 async function fetchServiceConfig(id: string): Promise<ServiceConfig[]> {
-    const res = await fetch(`${API_URL}/services/${id}/config`);
-    return res.json();
+    const res = await fetch(`${API_URL}/services/${id}/config`, {
+        headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
 }
 
 async function installService(id: string, version?: string) {
     const params = version ? `?version=${version}` : '';
-    const res = await fetch(`${API_URL}/services/${id}/install${params}`, { method: 'POST' });
+    const res = await fetch(`${API_URL}/services/${id}/install${params}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
 async function controlService(id: string, action: string) {
-    const res = await fetch(`${API_URL}/services/${id}/${action}`, { method: 'POST' });
+    const res = await fetch(`${API_URL}/services/${id}/${action}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 
 async function getServiceLogs(id: string) {
-    const res = await fetch(`${API_URL}/services/${id}/logs?lines=50`);
+    const res = await fetch(`${API_URL}/services/${id}/logs?lines=50`, {
+        headers: getAuthHeaders(),
+    });
     return res.json();
 }
 

@@ -81,11 +81,18 @@ func CreateProject(c *gin.Context) {
 	}
 
 	now := time.Now()
+	
+	// Default type to "docker" if not provided
+	projectType := req.Type
+	if projectType == "" {
+		projectType = models.ProjectTypeDocker
+	}
+	
 	project := &models.Project{
 		ID:          uuid.New().String()[:8],
 		Name:        req.Name,
 		Description: req.Description,
-		Type:        req.Type,
+		Type:        projectType,
 		Status:      models.ProjectStatusIdle,
 		Repository:  req.Repository,
 		Docker:      req.Docker,
