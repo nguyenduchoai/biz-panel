@@ -1,26 +1,50 @@
 /**
- * Databases Page
+ * Databases Page - Real API Integration
  */
 import React, { useState } from 'react';
-import { Typography, Card, Button, Tag, Spin, Table, Modal, Form, Toast } from '@douyinfe/semi-ui';
-import { IconPlus, IconSearch, IconRefresh, IconSetting } from '@douyinfe/semi-icons';
-import { useQuery } from '@tanstack/react-query';
-import { getDatabases } from '../services/mockApi';
-import type { DatabaseEngine } from '../types';
+import { Typography, Card, Button, Tag, Spin, Table, Modal, Form, Toast, Input, Select } from '@douyinfe/semi-ui';
+import { IconPlus, IconSearch, IconRefresh, IconDelete } from '@douyinfe/semi-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDatabases, createDatabase, deleteDatabase, type Database } from '../services/api';
 import './Databases.css';
 
 const { Title, Text } = Typography;
 
 const Databases: React.FC = () => {
     const [createModalVisible, setCreateModalVisible] = useState(false);
-    const [selectedEngine, setSelectedEngine] = useState<DatabaseEngine>('mysql');
+    const [selectedEngine, setSelectedEngine] = useState<Database['engine']>('mysql');
+    const [searchTerm, setSearchTerm] = useState('');
+    const queryClient = useQueryClient();
 
     const { data: databases, isLoading } = useQuery({
         queryKey: ['databases'],
         queryFn: getDatabases,
     });
 
-    const getEngineIcon = (engine: DatabaseEngine) => {
+    const createMutation = useMutation({
+        mutationFn: (data: Partial<Database>) => createDatabase(data),
+        onSuccess: () => {
+            Toast.success('Database created successfully!');
+            setCreateModalVisible(false);
+            queryClient.invalidateQueries({ queryKey: ['databases'] });
+        },
+        onError: (err: Error) => {
+            Toast.error(err.message);
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deleteDatabase(id),
+        onSuccess: () => {
+            Toast.success('Database deleted');
+            queryClient.invalidateQueries({ queryKey: ['databases'] });
+        },
+        onError: (err: Error) => {
+            Toast.error(err.message);
+        },
+    });
+
+    const getEngineIcon = (engine: Database['engine']) => {
         switch (engine) {
             case 'mysql': return '🐬';
             case 'postgresql': return '🐘';
@@ -30,7 +54,7 @@ const Databases: React.FC = () => {
         }
     };
 
-    const getEngineLabel = (engine: DatabaseEngine) => {
+    const getEngineLabel = (engine: Database['engine']) => {
         switch (engine) {
             case 'mysql': return 'MySQL';
             case 'postgresql': return 'PostgreSQL';
@@ -38,10 +62,6 @@ const Databases: React.FC = () => {
             case 'redis': return 'Redis';
             default: return engine;
         }
-    };
-
-    const getStatusColor = (status: string) => {
-        return status === 'running' ? 'green' : 'red';
     };
 
     const formatBytes = (bytes: number) => {
@@ -52,37 +72,90 @@ const Databases: React.FC = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
-    const handleCreate = () => {
-        Toast.success('Database created successfully!');
-        setCreateModalVisible(false);
+    const filteredDatabases = databases?.filter((db) =>
+        db.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleCreate = (values: Record<string, unknown>) => {
+        createMutation.mutate({
+            name: values.name as string,
+            engine: selectedEngine,
+            charset: values.charset as string,
+        });
+    };
+
+    const handleDelete = (db: Database) => {
+        Modal.confirm({
+            title: 'Delete Database',
+            content: `Are you sure you want to delete "${db.name}"? This action cannot be undone.`,
+            okType: 'danger',
+            onOk: () => deleteMutation.mutate(db.id),
+        });
     };
 
     const columns = [
-        { title: 'Name', dataIndex: 'name', key: 'name' },
+        {
+            title: 'Name',
+            dataIndex: 'name',
+            key: 'name',
+            render: (name: string, record: Database) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{getEngineIcon(record.engine)}</span>
+                    <Text strong>{name}</Text>
+                </div>
+            ),
+        },
+        {
+            title: 'Engine',
+            dataIndex: 'engine',
+            key: 'engine',
+            render: (engine: Database['engine']) => (
+                <Tag color="blue">{getEngineLabel(engine)}</Tag>
+            ),
+        },
         {
             title: 'Size',
             dataIndex: 'size',
             key: 'size',
-            render: (size: number) => formatBytes(size)
+            render: (size: number) => formatBytes(size),
         },
         {
-            title: 'Tables/Keys',
+            title: 'Tables',
             dataIndex: 'tables',
             key: 'tables',
-            render: (_: unknown, record: { tables?: number; keys?: number }) => record.tables || record.keys || '-'
+            render: (tables?: number) => tables ?? '-',
         },
-        { title: 'Charset', dataIndex: 'charset', key: 'charset', render: (v: string) => v || '-' },
+        {
+            title: 'Charset',
+            dataIndex: 'charset',
+            key: 'charset',
+            render: (charset?: string) => charset ?? '-',
+        },
+        {
+            title: 'Created',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            render: (date: string) => new Date(date).toLocaleDateString(),
+        },
         {
             title: 'Actions',
             key: 'actions',
-            render: () => (
+            width: 150,
+            render: (_: unknown, record: Database) => (
                 <div className="table-actions">
                     <Button icon={<IconSearch />} theme="borderless" size="small" title="Browse" />
                     <Button icon="💾" theme="borderless" size="small" title="Backup" />
-                    <Button icon="🗑️" theme="borderless" size="small" type="danger" title="Delete" />
+                    <Button
+                        icon={<IconDelete />}
+                        theme="borderless"
+                        size="small"
+                        type="danger"
+                        title="Delete"
+                        onClick={() => handleDelete(record)}
+                    />
                 </div>
-            )
-        }
+            ),
+        },
     ];
 
     if (isLoading) {
@@ -99,118 +172,107 @@ const Databases: React.FC = () => {
                 <div>
                     <Title heading={3} className="page-title">Databases</Title>
                     <Text type="secondary" className="page-subtitle">
-                        Manage your database servers and instances
+                        Manage your database instances ({databases?.length || 0} databases)
                     </Text>
                 </div>
                 <div className="page-actions">
-                    <Button icon={<IconPlus />} onClick={() => { setSelectedEngine('mysql'); setCreateModalVisible(true); }}>
-                        MySQL
+                    <Button icon={<IconRefresh />} onClick={() => queryClient.invalidateQueries({ queryKey: ['databases'] })}>
+                        Refresh
                     </Button>
-                    <Button icon={<IconPlus />} onClick={() => { setSelectedEngine('postgresql'); setCreateModalVisible(true); }}>
-                        PostgreSQL
+                    <Button
+                        icon={<IconPlus />}
+                        theme="solid"
+                        type="primary"
+                        onClick={() => setCreateModalVisible(true)}
+                    >
+                        Create Database
                     </Button>
                 </div>
             </div>
 
-            <div className="databases-list">
-                {databases?.map((server) => (
-                    <Card key={server.engine} className="database-card">
-                        <div className="database-header">
-                            <div className="database-info">
-                                <span className="database-icon">{getEngineIcon(server.engine)}</span>
-                                <div className="database-title">
-                                    <Text strong className="database-name">
-                                        {getEngineLabel(server.engine)} {server.version}
-                                    </Text>
-                                </div>
-                            </div>
-                            <Tag color={getStatusColor(server.status)} className="status-tag">
-                                {server.status === 'running' ? '🟢 Running' : '🔴 Stopped'}
-                            </Tag>
-                        </div>
-
-                        {server.status === 'running' && (
-                            <>
-                                <div className="database-stats">
-                                    <div className="stat-item">
-                                        <Text type="secondary">Memory</Text>
-                                        <Text strong>{formatBytes(server.memory)}</Text>
-                                    </div>
-                                    <div className="stat-item">
-                                        <Text type="secondary">Connections</Text>
-                                        <Text strong>{server.connections.current}/{server.connections.max}</Text>
-                                    </div>
-                                    {server.metrics?.queriesPerSecond && (
-                                        <div className="stat-item">
-                                            <Text type="secondary">Queries/sec</Text>
-                                            <Text strong>{server.metrics.queriesPerSecond}</Text>
-                                        </div>
-                                    )}
-                                    {server.metrics?.transactionsPerSecond && (
-                                        <div className="stat-item">
-                                            <Text type="secondary">TPS</Text>
-                                            <Text strong>{server.metrics.transactionsPerSecond}</Text>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {server.databases.length > 0 && (
-                                    <div className="database-list-section">
-                                        <div className="section-header">
-                                            <Text strong>Databases ({server.databases.length})</Text>
-                                            <Button icon={<IconPlus />} size="small" theme="borderless">Create</Button>
-                                        </div>
-                                        <Table
-                                            columns={columns}
-                                            dataSource={server.databases}
-                                            pagination={false}
-                                            size="small"
-                                            className="database-table"
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="database-actions">
-                                    <Button icon="📊" theme="borderless" size="small">phpMyAdmin</Button>
-                                    <Button icon={<IconSetting />} theme="borderless" size="small">Config</Button>
-                                    <Button icon="📜" theme="borderless" size="small">Slow Log</Button>
-                                    <Button icon={<IconRefresh />} theme="borderless" size="small">Restart</Button>
-                                </div>
-                            </>
-                        )}
-
-                        {server.status === 'stopped' && (
-                            <div className="database-stopped">
-                                <Button icon="▶️" theme="solid" type="primary">Start</Button>
-                            </div>
-                        )}
-                    </Card>
-                ))}
+            {/* Filters */}
+            <div className="databases-filters" style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                <Input
+                    prefix={<IconSearch />}
+                    placeholder="Search databases..."
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    showClear
+                    style={{ width: 300 }}
+                />
+                <Select
+                    placeholder="Filter by engine"
+                    style={{ width: 160 }}
+                    onChange={(v) => setSelectedEngine(v as Database['engine'])}
+                    optionList={[
+                        { value: 'mysql', label: '🐬 MySQL' },
+                        { value: 'postgresql', label: '🐘 PostgreSQL' },
+                        { value: 'mongodb', label: '🍃 MongoDB' },
+                        { value: 'redis', label: '🔴 Redis' },
+                    ]}
+                />
             </div>
+
+            {/* Database Table */}
+            <Card className="databases-card">
+                <Table
+                    columns={columns}
+                    dataSource={filteredDatabases}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                    className="databases-table"
+                />
+            </Card>
 
             {/* Create Modal */}
             <Modal
-                title={`Create ${getEngineLabel(selectedEngine)} Database`}
+                title="Create Database"
                 visible={createModalVisible}
                 onCancel={() => setCreateModalVisible(false)}
-                footer={
-                    <>
-                        <Button onClick={() => setCreateModalVisible(false)}>Cancel</Button>
-                        <Button theme="solid" type="primary" onClick={handleCreate}>Create</Button>
-                    </>
-                }
+                footer={null}
             >
-                <Form layout="vertical">
-                    <Form.Input field="name" label="Database Name" placeholder="my_database" rules={[{ required: true }]} />
-                    <Form.Input field="username" label="Username" placeholder="db_user" />
-                    <Form.Input field="password" label="Password" type="password" mode="password" />
-                    {selectedEngine === 'mysql' && (
-                        <Form.Select field="charset" label="Charset" initValue="utf8mb4" optionList={[
-                            { value: 'utf8mb4', label: 'utf8mb4 (Recommended)' },
-                            { value: 'utf8', label: 'utf8' },
-                            { value: 'latin1', label: 'latin1' },
-                        ]} />
+                <Form layout="vertical" onSubmit={handleCreate}>
+                    <Form.Input
+                        field="name"
+                        label="Database Name"
+                        placeholder="my_database"
+                        rules={[{ required: true, message: 'Name is required' }]}
+                    />
+                    <Form.Select
+                        field="engine"
+                        label="Engine"
+                        initValue="mysql"
+                        onChange={(v) => setSelectedEngine(v as Database['engine'])}
+                        optionList={[
+                            { value: 'mysql', label: '🐬 MySQL' },
+                            { value: 'postgresql', label: '🐘 PostgreSQL' },
+                            { value: 'mongodb', label: '🍃 MongoDB' },
+                            { value: 'redis', label: '🔴 Redis' },
+                        ]}
+                    />
+                    {(selectedEngine === 'mysql' || selectedEngine === 'postgresql') && (
+                        <Form.Select
+                            field="charset"
+                            label="Charset"
+                            initValue="utf8mb4"
+                            optionList={[
+                                { value: 'utf8mb4', label: 'utf8mb4 (Recommended)' },
+                                { value: 'utf8', label: 'utf8' },
+                                { value: 'latin1', label: 'latin1' },
+                            ]}
+                        />
                     )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                        <Button onClick={() => setCreateModalVisible(false)}>Cancel</Button>
+                        <Button
+                            theme="solid"
+                            type="primary"
+                            htmlType="submit"
+                            loading={createMutation.isPending}
+                        >
+                            Create
+                        </Button>
+                    </div>
                 </Form>
             </Modal>
         </div>

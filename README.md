@@ -1,44 +1,106 @@
 # Biz-Panel 🚀
 
-> **Modern Server Management Panel** - AWS Console meets Vercel Dashboard
+> **Modern Server Management Panel** - Coolify + 1Panel + aaPanel in one
 > 
-> A premium, high-density server management interface built with React, Semi Design, and TanStack Query.
+> A premium, high-density server management interface with **project-based Docker isolation** like Coolify.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![React](https://img.shields.io/badge/React-19.2-61dafb.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)
+![Go](https://img.shields.io/badge/Go-1.22-00ADD8.svg)
 
-## ✨ Features
+## 🚀 ONE-LINE INSTALL
 
-### 📊 Dashboard
-- Real-time resource monitoring (CPU, RAM, Disk, Network)
-- System health indicators
-- Quick action cards
+```bash
+# On Ubuntu/Debian VPS (as root):
+curl -fsSL https://raw.githubusercontent.com/bizino-services/biz-panel/main/scripts/install.sh | sudo bash
+```
 
-### 🌐 Websites Management
-- Multi-engine support (OpenResty, Nginx, Apache, Static)
+**Or development mode:**
+
+```bash
+# Clone and run both frontend + backend
+git clone https://github.com/bizino-services/biz-panel.git
+cd biz-panel && bash dev.sh
+```
+
+**Access:**
+- Frontend: `http://YOUR_VPS_IP:5173`
+- Backend API: `http://YOUR_VPS_IP:8080/api`
+
+---
+
+## ✨ Core Features
+
+### 📊 **Dashboard** (Real-time from Go Backend)
+- CPU, RAM, Disk, Network metrics từ gopsutil
+- WebSocket real-time updates
+- System uptime và info
+
+### 📦 **Projects** (Coolify-style Isolation) ⭐
+```
+PROJECT "e-commerce"
+├── Network: biz-panel-e-commerce (isolated)
+├── Containers: app, api, db, redis
+└── All containers can communicate within project
+    BUT isolated from other projects!
+```
+- Mỗi project = 1 Docker network riêng
+- Containers trong cùng project giao tiếp được
+- Projects khác nhau bị cô lập hoàn toàn
+
+### 🐳 **Docker** (1Panel-style UI)
+- Container management với real-time stats
+- Image management
+- Volume & Network management  
+- Project-based filtering
+
+### 🌐 **Websites Management**
+- Multi-engine: Nginx, Apache, OpenLiteSpeed
 - SSL/TLS certificate management
-- Domain configuration
+- PHP/Node/Static/Proxy projects
 
-### 🗄️ Databases
-- PostgreSQL, MySQL, MongoDB, Redis management
-- Database CRUD operations
+### 🗄️ **Databases**
+- PostgreSQL, MySQL, MongoDB, Redis
+- CRUD operations
 - Connection monitoring
 
-### 🐳 Docker
-- Container management
-- Image registry
-- Compose project support
-
-### 🔒 Security
-- Firewall rules management
+### 🔒 **Security**
+- Firewall rules (UFW/iptables)
 - SSH key management
 - Security scanning
+- Fail2ban integration
 
-### 📦 App Store
+### 📁 **File Manager**
+- Browse server files
+- Edit, create, delete files/folders
+- Permission management
+
+### 📜 **Logs**
+- Real-time log streaming
+- Filter by source and level
+- Search functionality
+
+### 💻 **Terminal**
+- Web-based SSH terminal
+- Multi-tab support
+- Container shell access
+
+### ⏰ **Cronjobs**
+- Cron expression builder
+- Run history
+- Enable/disable jobs
+
+### ⚙️ **Settings**
+- User management
+- Backup configuration
+- Notifications (Email, Slack, Discord)
+
+### 📦 **App Store**
 - One-click app installation
 - Popular apps: WordPress, MySQL, PostgreSQL, Redis, etc.
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -53,104 +115,128 @@
 | **Terminal** | xterm.js |
 | **Build Tool** | Vite 7 |
 
+---
+
 ## 📁 Project Structure
 
 ```
-src/
-├── components/           # Reusable UI components
-│   ├── layout/          # MainLayout, Sidebar, Header
-│   ├── dashboard/       # Dashboard widgets
-│   ├── websites/        # Website management
-│   ├── databases/       # Database management
-│   ├── docker/          # Container management
-│   ├── security/        # Security features
-│   └── appstore/        # App marketplace
-├── pages/               # Page components
-├── services/            # API services
-├── stores/              # Zustand stores
-├── theme/               # Theme configuration
-├── types/               # TypeScript types
-├── hooks/               # Custom React hooks
-└── utils/               # Utility functions
+biz-panel/
+├── scripts/
+│   ├── install.sh         # Production installer
+│   └── one-liner.sh       # One-liner options
+├── setup.sh               # Quick dev setup
+├── src/
+│   ├── components/        # Reusable UI components
+│   │   ├── layout/        # MainLayout, Sidebar, Header
+│   │   ├── dashboard/     # Dashboard widgets
+│   │   ├── websites/      # Website management
+│   │   ├── databases/     # Database management
+│   │   ├── docker/        # Container management
+│   │   ├── security/      # Security features
+│   │   └── appstore/      # App marketplace
+│   ├── pages/             # 12 complete pages
+│   ├── services/          # Mock API + types
+│   ├── stores/            # Zustand stores
+│   ├── theme/             # Dark theme CSS
+│   └── types/             # TypeScript definitions
+└── dist/                  # Production build
 ```
 
-## 🚀 Quick Start
+---
 
-### Prerequisites
+## 📦 Installation Options
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0
-
-### Installation
+### Option 1: One-Line Production Install ⭐
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/bizino-services/biz-panel/main/scripts/install.sh | sudo bash
+```
+
+This will:
+- ✅ Install Node.js 20
+- ✅ Clone repository to `/opt/biz-panel`
+- ✅ Build application
+- ✅ Create systemd service
+- ✅ Configure firewall
+- ✅ Start Biz-Panel
+
+### Option 2: Quick Development Setup
+
+```bash
+cd /home/biz-panel
+bash setup.sh
+```
+
+### Option 3: Manual Installation
+
+```bash
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
 # Clone repository
-git clone https://github.com/nguyenduchoai/biz-panel.git
+git clone https://github.com/bizino-services/biz-panel.git
 cd biz-panel
 
 # Install dependencies
 npm install
 
-# Start development server
-npm run dev
+# Development
+npm run dev -- --host 0.0.0.0 --port 5173
+
+# Production
+npm run build
+npm run preview -- --host 0.0.0.0 --port 5173
 ```
 
-### Environment Variables
+---
+
+## � Service Commands
+
+After production install:
 
 ```bash
-# .env.local
+sudo systemctl start biz-panel      # Start
+sudo systemctl stop biz-panel       # Stop
+sudo systemctl restart biz-panel    # Restart
+sudo systemctl status biz-panel     # Status
+journalctl -u biz-panel -f          # View logs
+```
+
+---
+
+## ⚙️ Environment Variables
+
+```bash
+# .env.local (optional)
 VITE_API_URL=http://localhost:8080/api
 VITE_WS_URL=ws://localhost:8080/ws
+BIZ_PANEL_PORT=5173
 ```
 
-### Build for Production
-
-```bash
-npm run build
-npm run preview  # Preview production build
-```
-
-## 📦 Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm run lint` | Run ESLint |
-
-## 🎨 Design Philosophy
-
-This panel follows the **"AWS Console meets Vercel"** design philosophy:
-- **High-density information display** - Maximum data visibility
-- **Dark mode first** - Easy on the eyes for long sessions
-- **Component-based architecture** - Reusable, maintainable code
-- **Responsive design** - Works on all screen sizes
+---
 
 ## 📋 Development Roadmap
 
-### Phase 1: Frontend UI ✅
-- [x] Project setup with Vite + React + TypeScript
-- [x] Semi Design integration
-- [x] Layout components (Sidebar, Header, MainLayout)
-- [x] Dashboard with mock data
-- [x] Websites management UI
-- [x] Databases management UI
-- [x] Docker management UI
-- [x] Security features UI
-- [x] App Store UI
+### Phase 1: Frontend UI ✅ COMPLETE
+- [x] All 12 pages implemented
+- [x] Mock API service
+- [x] Dark theme
+- [x] One-line installer
 
 ### Phase 2: Backend Integration (Next)
 - [ ] Go backend with Gin framework
 - [ ] WebSocket real-time updates
-- [ ] API authentication (JWT)
-- [ ] Database integration
+- [ ] JWT authentication
+- [ ] PostgreSQL database
 
 ### Phase 3: Production Features
 - [ ] Docker container orchestration
-- [ ] SSL certificate automation (Let's Encrypt)
-- [ ] Backup & restore functionality
+- [ ] SSL automation (Let's Encrypt)
+- [ ] Backup & restore
 - [ ] Multi-server management
+
+---
 
 ## 🤝 Contributing
 
@@ -160,9 +246,13 @@ This panel follows the **"AWS Console meets Vercel"** design philosophy:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+---
+
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
+
+---
 
 ## 🙏 Acknowledgments
 

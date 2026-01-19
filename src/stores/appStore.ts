@@ -91,13 +91,18 @@ export const useAppStore = create<AppState>()(
     )
 );
 
-// Initialize theme on load
+// Initialize theme on load and reset sidebar if needed
 if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('biz-panel-storage');
     if (stored) {
         try {
             const parsed = JSON.parse(stored);
             document.body.setAttribute('theme-mode', parsed.state?.theme || 'dark');
+            // Force sidebar to be expanded by default
+            if (parsed.state?.sidebarCollapsed === true) {
+                parsed.state.sidebarCollapsed = false;
+                localStorage.setItem('biz-panel-storage', JSON.stringify(parsed));
+            }
         } catch {
             document.body.setAttribute('theme-mode', 'dark');
         }

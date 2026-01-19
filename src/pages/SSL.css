@@ -1,0 +1,118 @@
+/**
+ * SSL Page Styles
+ */
+
+.ssl-page {
+    padding: 24px;
+}
+
+.ssl-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.summary-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    border-radius: 12px;
+}
+
+.summary-icon.valid {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.summary-icon.expiring {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.summary-icon.expired {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.summary-icon.total {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+}
+
+.summary-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.summary-content .semi-typography-heading {
+    margin: 0;
+}
+
+.certificates-card {
+    margin-top: 8px;
+}
+
+.domain-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lock-icon {
+    font-size: 16px;
+}
+
+.expiry-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.modal-info {
+    margin: 16px 0;
+    padding: 12px;
+    background: var(--semi-color-fill-0);
+    border-radius: 8px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .ssl-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .ssl-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .ssl-page .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .ssl-page .page-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+}

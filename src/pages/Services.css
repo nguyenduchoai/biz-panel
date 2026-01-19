@@ -1,0 +1,145 @@
+/**
+ * Services Management Page Styles
+ */
+
+.services-page {
+    padding: 24px;
+}
+
+.services-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.summary-icon {
+    font-size: 32px;
+}
+
+.summary-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.summary-content .semi-typography-heading {
+    margin: 4px 0 0 0;
+}
+
+.services-card {
+    margin-top: 8px;
+}
+
+.services-tabs {
+    margin-bottom: 16px;
+}
+
+.service-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.service-icon {
+    font-size: 28px;
+    width: 40px;
+    text-align: center;
+}
+
+.service-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Config Modal */
+.config-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.config-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--semi-color-fill-0);
+    border-radius: 8px;
+}
+
+.config-label {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-input select {
+    padding: 8px 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 6px;
+    background: var(--semi-color-bg-2);
+    color: var(--semi-color-text-0);
+    font-size: 14px;
+}
+
+/* Logs Modal */
+.logs-content {
+    background: var(--semi-color-bg-3);
+    padding: 16px;
+    border-radius: 8px;
+    font-family: 'Fira Code', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--semi-color-text-1);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .services-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .services-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+}

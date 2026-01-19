@@ -1,0 +1,121 @@
+/**
+ * PHP Management Page Styles
+ */
+
+.php-page {
+    padding: 24px;
+}
+
+.php-page .page-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.php-icon {
+    font-size: 24px;
+}
+
+.php-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.summary-content {
+    text-align: center;
+}
+
+.summary-content .semi-typography-heading {
+    margin: 8px 0 0 0;
+}
+
+.versions-card {
+    margin-top: 8px;
+}
+
+.version-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.version-cell .php-icon {
+    font-size: 28px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* Extensions Modal */
+.extensions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.extension-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--semi-color-fill-0);
+    border-radius: 8px;
+}
+
+.ext-info {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Config Modal */
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.config-row:last-child {
+    border-bottom: none;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .php-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .extensions-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+}

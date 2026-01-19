@@ -1,5 +1,5 @@
 /**
- * Main Sidebar Navigation Component
+ * Main Sidebar Navigation Component - Premium Design
  */
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -18,6 +18,8 @@ import {
     IconGridView,
     IconSetting,
     IconChevronDown,
+    IconCode,
+    IconKey,
 } from '@douyinfe/semi-icons';
 import { useAppStore } from '../../stores/appStore';
 import './Sidebar.css';
@@ -32,15 +34,27 @@ const Sidebar: React.FC = () => {
     const navItems = [
         { itemKey: '/', text: 'Dashboard', icon: <IconHome /> },
         {
+            itemKey: 'infrastructure',
             text: 'INFRASTRUCTURE',
             items: [
                 { itemKey: '/websites', text: 'Websites', icon: <IconGlobe /> },
                 { itemKey: '/projects', text: 'Projects', icon: <IconApps /> },
                 { itemKey: '/databases', text: 'Databases', icon: <IconServer /> },
-                { itemKey: '/docker', text: 'Docker', icon: <span className="docker-icon">🐳</span> },
+                { itemKey: '/docker', text: 'Docker', icon: <span className="sidebar-emoji">🐳</span> },
             ]
         },
         {
+            itemKey: 'software',
+            text: 'SOFTWARE',
+            items: [
+                { itemKey: '/services', text: 'Services', icon: <span className="sidebar-emoji">🛠️</span> },
+                { itemKey: '/software', text: 'Software', icon: <IconCode /> },
+                { itemKey: '/php', text: 'PHP', icon: <span className="sidebar-emoji">🐘</span> },
+                { itemKey: '/ssl', text: 'SSL Certs', icon: <IconKey /> },
+            ]
+        },
+        {
+            itemKey: 'operations',
             text: 'OPERATIONS',
             items: [
                 { itemKey: '/security', text: 'Security', icon: <IconSafe /> },
@@ -51,6 +65,7 @@ const Sidebar: React.FC = () => {
             ]
         },
         {
+            itemKey: 'extras',
             text: 'EXTRAS',
             items: [
                 { itemKey: '/appstore', text: 'App Store', icon: <IconGridView /> },
@@ -78,6 +93,7 @@ const Sidebar: React.FC = () => {
                 <Nav
                     mode="vertical"
                     selectedKeys={[location.pathname]}
+                    defaultOpenKeys={['infrastructure', 'software', 'operations', 'extras']}
                     items={navItems}
                     onSelect={handleSelect}
                     isCollapsed={sidebarCollapsed}

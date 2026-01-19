@@ -1,0 +1,133 @@
+/* Terminal Page Styles */
+.terminal-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.terminal-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.terminal-card .semi-card-body {
+    padding: 0;
+}
+
+/* Tab Styling */
+.terminal-tab {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tab-close {
+    margin-left: 8px;
+    opacity: 0.5;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.tab-close:hover {
+    opacity: 1;
+    color: var(--color-danger);
+}
+
+/* Terminal Content */
+.terminal-content {
+    background: #0d1117;
+    min-height: 500px;
+    cursor: text;
+}
+
+.terminal-output {
+    padding: 16px;
+    height: 500px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e6edf3;
+}
+
+.terminal-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+}
+
+.terminal-prompt {
+    color: #58a6ff;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.terminal-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e6edf3;
+    font-family: inherit;
+    font-size: inherit;
+    caret-color: #e6edf3;
+}
+
+.terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #e6edf3;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Scrollbar */
+.terminal-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+    background: #161b22;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* Semi Tabs Override */
+.terminal-card .semi-tabs-bar {
+    background: #161b22;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.terminal-card .semi-tabs-tab {
+    color: var(--color-text-secondary);
+}
+
+.terminal-card .semi-tabs-tab-active {
+    color: var(--color-text-primary);
+    background: #0d1117;
+}

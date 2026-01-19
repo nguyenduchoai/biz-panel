@@ -1,0 +1,106 @@
+/* Settings Page Styles */
+.settings-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.settings-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    min-height: 600px;
+}
+
+.settings-card .semi-card-body {
+    padding: 0;
+}
+
+.settings-tabs {
+    height: 100%;
+}
+
+.settings-tabs .semi-tabs-bar {
+    width: 220px;
+    background: var(--color-bg-tertiary);
+    border-right: 1px solid var(--color-border);
+    padding: 16px 0;
+}
+
+.settings-tabs .semi-tabs-tab {
+    justify-content: flex-start;
+    padding: 12px 20px;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+}
+
+.settings-tabs .semi-tabs-tab:hover {
+    background: var(--color-bg-elevated);
+    color: var(--color-text-primary);
+}
+
+.settings-tabs .semi-tabs-tab-active {
+    background: var(--color-bg-secondary);
+    color: var(--color-primary);
+    border-left: 3px solid var(--color-primary);
+}
+
+.settings-tabs .semi-tabs-content {
+    padding: 24px;
+}
+
+.settings-section {
+    max-width: 800px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.section-header h5 {
+    margin: 0;
+}
+
+.users-table .semi-table-thead .semi-table-row .semi-table-row-head {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+}
+
+.users-table .semi-table-tbody .semi-table-row:hover {
+    background: var(--color-bg-tertiary);
+}
+
+/* Form Styles */
+.settings-section .semi-form-field {
+    margin-bottom: 20px;
+}
+
+.settings-section .semi-form-field-label-text {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+.settings-section .semi-form-field-extra-text {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-tabs .semi-tabs-bar {
+        width: 60px;
+    }
+
+    .settings-tabs .semi-tabs-tab {
+        padding: 12px;
+        justify-content: center;
+    }
+
+    .settings-tabs .semi-tabs-tab span:not([class*="Icon"]) {
+        display: none;
+    }
+}

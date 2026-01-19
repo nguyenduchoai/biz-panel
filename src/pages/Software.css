@@ -1,0 +1,152 @@
+/**
+ * Software Page Styles
+ */
+
+.software-page {
+    padding: 24px;
+}
+
+.software-tabs {
+    margin-top: 24px;
+}
+
+.software-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.software-card {
+    background: var(--semi-color-bg-2);
+    border: 1px solid var(--semi-color-border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.software-card:hover {
+    border-color: var(--semi-color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.software-card.installed {
+    background: linear-gradient(135deg, var(--semi-color-bg-2), var(--semi-color-primary-light-default));
+}
+
+.software-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.software-icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--semi-color-fill-0);
+    border-radius: 10px;
+}
+
+.software-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.software-name {
+    font-size: 16px;
+}
+
+.software-version {
+    font-size: 12px;
+}
+
+.status-tag {
+    font-size: 11px;
+}
+
+.software-desc {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 16px;
+    color: var(--semi-color-text-2);
+}
+
+.software-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.install-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.install-progress .semi-progress {
+    width: 100%;
+}
+
+/* Config Modal */
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.config-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.config-section:last-child {
+    border-bottom: none;
+}
+
+.config-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.version-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .software-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .software-page .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .software-page .page-actions {
+        width: 100%;
+    }
+
+    .software-page .page-actions input {
+        flex: 1;
+    }
+}

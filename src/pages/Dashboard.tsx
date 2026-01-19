@@ -1,5 +1,5 @@
 /**
- * Dashboard Page
+ * Dashboard Page - Connected to Real Backend
  */
 import React, { useMemo } from 'react';
 import { Typography, Card, Spin } from '@douyinfe/semi-ui';
@@ -7,7 +7,7 @@ import { Typography, Card, Spin } from '@douyinfe/semi-ui';
 import { useQuery } from '@tanstack/react-query';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ResourceCard, QuickActions, ServicesStatus, ActivityFeed } from '../components/dashboard';
-import { getResourceMetrics } from '../services/mockApi';
+import { getSystemMetrics, type SystemMetrics } from '../services/api';
 import './Dashboard.css';
 
 const { Title, Text } = Typography;
@@ -21,10 +21,12 @@ const generateChartData = (count: number, maxValue: number) => {
 };
 
 const Dashboard: React.FC = () => {
-    const { data: metrics, isLoading } = useQuery({
-        queryKey: ['metrics'],
-        queryFn: getResourceMetrics,
-        refetchInterval: 5000,
+    // Use real backend API for metrics
+    const { data: metrics, isLoading } = useQuery<SystemMetrics>({
+        queryKey: ['system-metrics'],
+        queryFn: getSystemMetrics,
+        refetchInterval: 5000, // Refresh every 5 seconds
+        retry: 3,
     });
 
     const networkData = useMemo(() => generateChartData(20, 100), []);
@@ -72,7 +74,7 @@ const Dashboard: React.FC = () => {
                 <ResourceCard
                     icon="🖥️"
                     title="CPU Usage"
-                    value={`${metrics?.cpu.usage}%`}
+                    value={`${metrics?.cpu.usage.toFixed(1)}%`}
                     percentage={metrics?.cpu.usage || 0}
                     subtitle={`${metrics?.cpu.cores} cores`}
                     trend={cpuTrend}
@@ -82,7 +84,7 @@ const Dashboard: React.FC = () => {
                     icon="🧠"
                     title="Memory"
                     value={formatBytes(metrics?.memory.used || 0)}
-                    percentage={metrics?.memory.percentage || 0}
+                    percentage={metrics?.memory.usedPercent || 0}
                     subtitle={`of ${formatBytes(metrics?.memory.total || 0)}`}
                     trend={memoryTrend}
                     color="#00c853"
@@ -91,17 +93,17 @@ const Dashboard: React.FC = () => {
                     icon="💾"
                     title="Disk Usage"
                     value={formatBytes(metrics?.disk.used || 0)}
-                    percentage={metrics?.disk.percentage || 0}
+                    percentage={metrics?.disk.usedPercent || 0}
                     subtitle={`of ${formatBytes(metrics?.disk.total || 0)}`}
                     color="#ff9800"
                 />
                 <ResourceCard
-                    icon="🌡️"
-                    title="Temperature"
-                    value={`${metrics?.temperature}°C`}
-                    percentage={Math.min((metrics?.temperature || 0) / 80 * 100, 100)}
-                    subtitle="Normal"
-                    color={metrics?.temperature && metrics.temperature > 60 ? '#ff3d00' : '#17a2b8'}
+                    icon="⏱️"
+                    title="Uptime"
+                    value={formatUptime(metrics?.uptime || 0)}
+                    percentage={100}
+                    subtitle={metrics?.platform || 'Linux'}
+                    color="#17a2b8"
                 />
             </div>
 
@@ -138,11 +140,11 @@ const Dashboard: React.FC = () => {
                     <div className="network-stats">
                         <div className="network-stat">
                             <Text type="secondary">↑ Upload</Text>
-                            <Text strong>{formatBytes(metrics?.network.bytesOut || 0)}/s</Text>
+                            <Text strong>{formatBytes(metrics?.network.bytesSent || 0)}</Text>
                         </div>
                         <div className="network-stat">
                             <Text type="secondary">↓ Download</Text>
-                            <Text strong>{formatBytes(metrics?.network.bytesIn || 0)}/s</Text>
+                            <Text strong>{formatBytes(metrics?.network.bytesRecv || 0)}</Text>
                         </div>
                     </div>
                 </Card>

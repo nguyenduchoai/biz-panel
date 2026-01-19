@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update version.json
+        run: |
+          cat > version.json << EOF
+          {
+            "version": "${{ steps.version.outputs.VERSION }}",
+            "build": "$(date +%Y%m%d)",
+            "channel": "stable",
+            "releaseDate": "$(date -I)",
+            "commit": "${GITHUB_SHA:0:7}"
+          }
+          EOF
+
+      - name: Build backend
+        run: |
+          cd backend
+          go mod download
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.Version=${{ steps.version.outputs.VERSION }}" -o bin/biz-panel-server ./cmd/server
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Create package
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          mkdir -p build/biz-panel-$VERSION
+          
+          # Copy files
+          cp backend/bin/biz-panel-server build/biz-panel-$VERSION/
+          cp -r dist build/biz-panel-$VERSION/web
+          cp install.sh build/biz-panel-$VERSION/
+          cp version.json build/biz-panel-$VERSION/
+          cp -r scripts build/biz-panel-$VERSION/
+          
+          # Make executable
+          chmod +x build/biz-panel-$VERSION/install.sh
+          chmod +x build/biz-panel-$VERSION/scripts/*.sh
+          
+          # Create tarball
+          cd build
+          tar -czf biz-panel-$VERSION.tar.gz biz-panel-$VERSION
+
+      - name: Generate checksums
+        run: |
+          cd build
+          sha256sum biz-panel-${{ steps.version.outputs.VERSION }}.tar.gz > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/biz-panel-${{ steps.version.outputs.VERSION }}.tar.gz
+            build/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest version file
+        run: |
+          # This creates a file that the update script can check
+          echo '${{ steps.version.outputs.VERSION }}' > latest_version.txt
+          
+      - name: Upload version info
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            version.json
+            latest_version.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

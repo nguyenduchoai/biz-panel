@@ -1,0 +1,120 @@
+/* Files Page Styles */
+.files-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.files-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.files-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.files-breadcrumb {
+  padding: 12px 16px;
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.files-breadcrumb .semi-breadcrumb-item {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: color 0.2s;
+}
+
+.files-breadcrumb .semi-breadcrumb-item:hover {
+  color: var(--color-primary);
+}
+
+.files-table .semi-table-thead .semi-table-row .semi-table-row-head {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.files-table .semi-table-tbody .semi-table-row {
+  transition: background 0.2s;
+}
+
+.files-table .semi-table-tbody .semi-table-row:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.file-name-cell:hover {
+  color: var(--color-primary) !important;
+}
+
+.file-name-cell:hover .semi-typography {
+  color: var(--color-primary) !important;
+}
+
+.files-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.files-selection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--color-primary);
+  border-radius: 0 0 8px 8px;
+}
+
+/* File Editor Modal */
+.file-editor-modal .semi-modal-content {
+  padding: 0;
+}
+
+.file-editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar {
+  padding: 12px 16px;
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 400px;
+  padding: 16px;
+  background: var(--color-bg-primary);
+  border: none;
+  color: var(--color-text-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+
+.code-editor:focus {
+  outline: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .files-toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .files-toolbar .semi-input {
+    width: 100%;
+  }
+}

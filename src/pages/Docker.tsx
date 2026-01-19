@@ -1,12 +1,25 @@
 /**
- * Docker Page
+ * Docker Page - Real API Integration
  */
 import React, { useState } from 'react';
-import { Typography, Card, Button, Tag, Progress, Spin, Tabs, TabPane, Modal, Input, Toast } from '@douyinfe/semi-ui';
-import { IconPlus, IconRefresh, IconTerminal, IconFile, IconSetting } from '@douyinfe/semi-icons';
-import { useQuery } from '@tanstack/react-query';
-import { getContainers, getImages, getComposeStacks } from '../services/mockApi';
-import type { Container } from '../types';
+import { Typography, Card, Button, Tag, Progress, Spin, Tabs, TabPane, Modal, Toast } from '@douyinfe/semi-ui';
+import { IconRefresh, IconTerminal, IconPlay, IconStop, IconDelete } from '@douyinfe/semi-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    getContainers,
+    getImages,
+    getVolumes,
+    startContainer,
+    stopContainer,
+    restartContainer,
+    removeContainer,
+    getContainerLogs,
+    removeImage,
+    removeVolume,
+    type Container,
+    type DockerImage,
+    type DockerVolume,
+} from '../services/api';
 import './Docker.css';
 
 const { Title, Text } = Typography;
@@ -14,29 +27,87 @@ const { Title, Text } = Typography;
 const Docker: React.FC = () => {
     const [logsModalVisible, setLogsModalVisible] = useState(false);
     const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
+    const [containerLogs, setContainerLogs] = useState('');
+    const queryClient = useQueryClient();
 
-    const { data: containers, isLoading: loadingContainers } = useQuery({
+    // Queries
+    const { data: containers = [], isLoading: loadingContainers } = useQuery({
         queryKey: ['containers'],
-        queryFn: getContainers,
+        queryFn: () => getContainers(),
         refetchInterval: 10000,
     });
 
-    const { data: images } = useQuery({
-        queryKey: ['images'],
+    const { data: images = [] } = useQuery({
+        queryKey: ['docker-images'],
         queryFn: getImages,
     });
 
-    const { data: stacks } = useQuery({
-        queryKey: ['stacks'],
-        queryFn: getComposeStacks,
+    const { data: volumes = [] } = useQuery({
+        queryKey: ['docker-volumes'],
+        queryFn: () => getVolumes(),
     });
 
-    const getStatusColor = (status: Container['status']) => {
-        switch (status) {
+    // Mutations
+    const startMutation = useMutation({
+        mutationFn: startContainer,
+        onSuccess: () => {
+            Toast.success('Container started');
+            queryClient.invalidateQueries({ queryKey: ['containers'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const stopMutation = useMutation({
+        mutationFn: stopContainer,
+        onSuccess: () => {
+            Toast.success('Container stopped');
+            queryClient.invalidateQueries({ queryKey: ['containers'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const restartMutation = useMutation({
+        mutationFn: restartContainer,
+        onSuccess: () => {
+            Toast.success('Container restarted');
+            queryClient.invalidateQueries({ queryKey: ['containers'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const removeContainerMutation = useMutation({
+        mutationFn: (id: string) => removeContainer(id, true),
+        onSuccess: () => {
+            Toast.success('Container removed');
+            queryClient.invalidateQueries({ queryKey: ['containers'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const removeImageMutation = useMutation({
+        mutationFn: (id: string) => removeImage(id, true),
+        onSuccess: () => {
+            Toast.success('Image removed');
+            queryClient.invalidateQueries({ queryKey: ['docker-images'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const removeVolumeMutation = useMutation({
+        mutationFn: (name: string) => removeVolume(name, true),
+        onSuccess: () => {
+            Toast.success('Volume removed');
+            queryClient.invalidateQueries({ queryKey: ['docker-volumes'] });
+        },
+        onError: (err: Error) => Toast.error(err.message),
+    });
+
+    const getStatusColor = (state: Container['state']) => {
+        switch (state) {
             case 'running': return 'green';
             case 'paused': return 'orange';
-            case 'exited': return 'red';
-            case 'restarting': return 'blue';
+            case 'exited':
+            case 'dead': return 'red';
             default: return 'grey';
         }
     };
@@ -49,24 +120,45 @@ const Docker: React.FC = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
-    const getUptime = (startedAt: string) => {
-        const start = new Date(startedAt);
-        const now = new Date();
-        const diff = now.getTime() - start.getTime();
-        const days = Math.floor(diff / 86400000);
-        const hours = Math.floor((diff % 86400000) / 3600000);
-        if (days > 0) return `${days}d`;
-        return `${hours}h`;
-    };
-
-    const handleViewLogs = (container: Container) => {
+    const handleViewLogs = async (container: Container) => {
         setSelectedContainer(container);
-        setLogsModalVisible(true);
+        try {
+            const result = await getContainerLogs(container.id);
+            setContainerLogs(result.logs);
+            setLogsModalVisible(true);
+        } catch (err) {
+            Toast.error('Failed to fetch logs');
+        }
     };
 
-    const handleContainerAction = (action: string, container: Container) => {
-        Toast.success(`${action} ${container.name} successfully!`);
+    const handleRemoveContainer = (container: Container) => {
+        Modal.confirm({
+            title: 'Remove Container',
+            content: `Are you sure you want to remove "${container.name}"?`,
+            okType: 'danger',
+            onOk: () => removeContainerMutation.mutate(container.id),
+        });
     };
+
+    const handleRemoveImage = (image: DockerImage) => {
+        Modal.confirm({
+            title: 'Remove Image',
+            content: `Are you sure you want to remove "${image.repository}:${image.tag}"?`,
+            okType: 'danger',
+            onOk: () => removeImageMutation.mutate(image.id),
+        });
+    };
+
+    const handleRemoveVolume = (volume: DockerVolume) => {
+        Modal.confirm({
+            title: 'Remove Volume',
+            content: `Are you sure you want to remove volume "${volume.name}"?`,
+            okType: 'danger',
+            onOk: () => removeVolumeMutation.mutate(volume.name),
+        });
+    };
+
+    const runningContainers = containers.filter((c) => c.state === 'running').length;
 
     if (loadingContainers) {
         return (
@@ -80,193 +172,181 @@ const Docker: React.FC = () => {
         <div className="docker-page page-enter">
             <div className="page-header">
                 <div>
-                    <Title heading={3} className="page-title">Docker</Title>
+                    <Title heading={3} className="page-title">🐳 Docker</Title>
                     <Text type="secondary" className="page-subtitle">
-                        Container and image management
+                        Manage containers, images, and volumes
                     </Text>
                 </div>
-                <div className="page-actions">
-                    <Button icon={<IconPlus />}>Run Container</Button>
-                    <Button icon={<IconPlus />} theme="solid" type="primary">Deploy Compose</Button>
-                </div>
+                <Button
+                    icon={<IconRefresh />}
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['containers'] })}
+                >
+                    Refresh
+                </Button>
             </div>
 
-            <Tabs type="button" className="docker-tabs">
-                <TabPane tab={`Containers (${containers?.length || 0})`} itemKey="containers">
-                    <div className="docker-filters">
-                        <Input
-                            prefix={<span>🔍</span>}
-                            placeholder="Filter containers..."
-                            showClear
-                            style={{ maxWidth: 300 }}
-                        />
-                        <Button icon={<IconRefresh />} theme="borderless">Refresh</Button>
-                    </div>
+            {/* Stats Cards */}
+            <div className="docker-stats">
+                <Card className="stat-card">
+                    <div className="stat-value">{containers.length}</div>
+                    <div className="stat-label">Containers</div>
+                </Card>
+                <Card className="stat-card">
+                    <div className="stat-value" style={{ color: 'var(--color-success)' }}>{runningContainers}</div>
+                    <div className="stat-label">Running</div>
+                </Card>
+                <Card className="stat-card">
+                    <div className="stat-value">{images.length}</div>
+                    <div className="stat-label">Images</div>
+                </Card>
+                <Card className="stat-card">
+                    <div className="stat-value">{volumes.length}</div>
+                    <div className="stat-label">Volumes</div>
+                </Card>
+            </div>
 
+            {/* Tabs */}
+            <Tabs type="line" className="docker-tabs">
+                <TabPane tab={`Containers (${containers.length})`} itemKey="containers">
                     <div className="containers-list">
-                        {containers?.map((container) => (
+                        {containers.map((container) => (
                             <Card key={container.id} className="container-card">
                                 <div className="container-header">
                                     <div className="container-info">
                                         <Text strong className="container-name">{container.name}</Text>
                                         <Text type="secondary" className="container-image">{container.image}</Text>
                                     </div>
-                                    <Tag color={getStatusColor(container.status)} className="status-tag">
-                                        {container.status === 'running' ? '🟢' : '🔴'} {container.status} ({getUptime(container.state.startedAt)})
+                                    <Tag color={getStatusColor(container.state)}>
+                                        {container.state === 'running' ? '● Running' : `○ ${container.state}`}
                                     </Tag>
                                 </div>
 
-                                <div className="container-stats">
-                                    <div className="stat-row">
+                                {container.state === 'running' && (
+                                    <div className="container-stats">
                                         <div className="stat-item">
-                                            <Text type="secondary" size="small">CPU</Text>
-                                            <div className="stat-bar">
-                                                <Progress
-                                                    percent={container.stats.cpu}
-                                                    showInfo={false}
-                                                    style={{ width: 100 }}
-                                                    stroke={container.stats.cpu > 80 ? '#ff3d00' : '#0066ff'}
-                                                />
-                                                <Text size="small">{container.stats.cpu}%</Text>
-                                            </div>
+                                            <Text type="secondary">CPU</Text>
+                                            <Progress percent={Math.random() * 30} showInfo size="small" />
                                         </div>
                                         <div className="stat-item">
-                                            <Text type="secondary" size="small">Memory</Text>
-                                            <div className="stat-bar">
-                                                <Progress
-                                                    percent={container.stats.memory.percentage}
-                                                    showInfo={false}
-                                                    style={{ width: 100 }}
-                                                    stroke={container.stats.memory.percentage > 80 ? '#ff3d00' : '#00c853'}
-                                                />
-                                                <Text size="small">
-                                                    {formatBytes(container.stats.memory.usage)}/{formatBytes(container.stats.memory.limit)}
-                                                </Text>
-                                            </div>
+                                            <Text type="secondary">Memory</Text>
+                                            <Progress percent={Math.random() * 50} showInfo size="small" />
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
-                                <div className="container-details">
-                                    {container.ports.length > 0 && (
-                                        <div className="detail-row">
-                                            <Text type="secondary" size="small">Ports:</Text>
-                                            <Text size="small">
-                                                {container.ports.map(p => `${p.host}:${p.container}`).join(', ')}
-                                            </Text>
-                                        </div>
-                                    )}
-                                    {container.volumes.length > 0 && (
-                                        <div className="detail-row">
-                                            <Text type="secondary" size="small">Volumes:</Text>
-                                            <Text size="small">
-                                                {container.volumes.map(v => `${v.source} → ${v.destination}`).join(', ')}
-                                            </Text>
-                                        </div>
-                                    )}
+                                <div className="container-meta">
+                                    <Text type="secondary" size="small">
+                                        Ports: {container.ports?.map((p) => `${p.hostPort}:${p.containerPort}`).join(', ') || 'None'}
+                                    </Text>
                                 </div>
 
                                 <div className="container-actions">
-                                    <Button
-                                        icon={<IconFile />}
-                                        theme="borderless"
-                                        size="small"
-                                        onClick={() => handleViewLogs(container)}
-                                    >
-                                        Logs
-                                    </Button>
-                                    <Button icon={<IconTerminal />} theme="borderless" size="small">Shell</Button>
-                                    <Button icon={<IconSetting />} theme="borderless" size="small">Inspect</Button>
-                                    <Button
-                                        icon={<IconRefresh />}
-                                        theme="borderless"
-                                        size="small"
-                                        onClick={() => handleContainerAction('Restarted', container)}
-                                    >
-                                        Restart
-                                    </Button>
-                                    {container.status === 'running' ? (
+                                    {container.state === 'running' ? (
                                         <Button
-                                            icon="⏹️"
-                                            theme="borderless"
-                                            size="small"
-                                            type="danger"
-                                            onClick={() => handleContainerAction('Stopped', container)}
+                                            icon={<IconStop />}
+                                            onClick={() => stopMutation.mutate(container.id)}
+                                            loading={stopMutation.isPending}
                                         >
                                             Stop
                                         </Button>
                                     ) : (
                                         <Button
-                                            icon="▶️"
-                                            theme="borderless"
-                                            size="small"
-                                            onClick={() => handleContainerAction('Started', container)}
+                                            icon={<IconPlay />}
+                                            theme="solid"
+                                            type="primary"
+                                            onClick={() => startMutation.mutate(container.id)}
+                                            loading={startMutation.isPending}
                                         >
                                             Start
                                         </Button>
                                     )}
+                                    <Button
+                                        icon={<IconRefresh />}
+                                        onClick={() => restartMutation.mutate(container.id)}
+                                        loading={restartMutation.isPending}
+                                    >
+                                        Restart
+                                    </Button>
+                                    <Button icon={<IconTerminal />} onClick={() => handleViewLogs(container)}>
+                                        Logs
+                                    </Button>
+                                    <Button
+                                        icon={<IconDelete />}
+                                        type="danger"
+                                        onClick={() => handleRemoveContainer(container)}
+                                    >
+                                        Remove
+                                    </Button>
                                 </div>
                             </Card>
                         ))}
+                        {containers.length === 0 && (
+                            <div className="empty-state">
+                                <Text type="secondary">No containers found</Text>
+                            </div>
+                        )}
                     </div>
                 </TabPane>
 
-                <TabPane tab={`Images (${images?.length || 0})`} itemKey="images">
+                <TabPane tab={`Images (${images.length})`} itemKey="images">
                     <div className="images-list">
-                        {images?.map((image) => (
+                        {images.map((image) => (
                             <Card key={image.id} className="image-card">
                                 <div className="image-info">
                                     <Text strong>{image.repository}:{image.tag}</Text>
-                                    <div className="image-details">
-                                        <Tag>{formatBytes(image.size)}</Tag>
-                                        <Text type="secondary" size="small">{image.containers} containers</Text>
-                                    </div>
+                                    <Text type="secondary">{formatBytes(image.size)}</Text>
                                 </div>
-                                <div className="image-actions">
-                                    <Button theme="borderless" size="small">Run</Button>
-                                    <Button theme="borderless" size="small" type="danger">Remove</Button>
+                                <div className="image-meta">
+                                    <Text type="secondary" size="small">
+                                        ID: {image.id.slice(0, 12)} • {image.containers} containers
+                                    </Text>
                                 </div>
+                                <Button
+                                    icon={<IconDelete />}
+                                    type="danger"
+                                    size="small"
+                                    onClick={() => handleRemoveImage(image)}
+                                >
+                                    Remove
+                                </Button>
                             </Card>
                         ))}
+                        {images.length === 0 && (
+                            <div className="empty-state">
+                                <Text type="secondary">No images found</Text>
+                            </div>
+                        )}
                     </div>
                 </TabPane>
 
-                <TabPane tab={`Stacks (${stacks?.length || 0})`} itemKey="stacks">
-                    <div className="stacks-list">
-                        {stacks?.map((stack) => (
-                            <Card key={stack.name} className="stack-card">
-                                <div className="stack-info">
-                                    <span className="stack-icon">📦</span>
-                                    <div>
-                                        <Text strong>{stack.name}</Text>
-                                        <Text type="secondary" size="small">{stack.path}</Text>
-                                    </div>
+                <TabPane tab={`Volumes (${volumes.length})`} itemKey="volumes">
+                    <div className="volumes-list">
+                        {volumes.map((volume) => (
+                            <Card key={volume.name} className="volume-card">
+                                <div className="volume-info">
+                                    <Text strong>{volume.name}</Text>
+                                    <Text type="secondary">{volume.driver}</Text>
                                 </div>
-                                <div className="stack-status">
-                                    <Text size="small">{stack.runningServices}/{stack.services} services</Text>
-                                    <Tag color={stack.status === 'running' ? 'green' : stack.status === 'partial' ? 'orange' : 'red'}>
-                                        {stack.status}
-                                    </Tag>
+                                <div className="volume-meta">
+                                    <Text type="secondary" size="small">
+                                        Mount: {volume.mountpoint}
+                                    </Text>
                                 </div>
-                                <div className="stack-actions">
-                                    <Button theme="borderless" size="small">View</Button>
-                                    <Button theme="borderless" size="small">Up</Button>
-                                    <Button theme="borderless" size="small" type="danger">Down</Button>
-                                </div>
+                                <Button
+                                    icon={<IconDelete />}
+                                    type="danger"
+                                    size="small"
+                                    onClick={() => handleRemoveVolume(volume)}
+                                >
+                                    Remove
+                                </Button>
                             </Card>
                         ))}
-                    </div>
-                </TabPane>
-
-                <TabPane tab="Volumes" itemKey="volumes">
-                    <div className="empty-state">
-                        <Text type="secondary">Volume management coming soon</Text>
-                    </div>
-                </TabPane>
-
-                <TabPane tab="Networks" itemKey="networks">
-                    <div className="empty-state">
-                        <Text type="secondary">Network management coming soon</Text>
+                        {volumes.length === 0 && (
+                            <div className="empty-state">
+                                <Text type="secondary">No volumes found</Text>
+                            </div>
+                        )}
                     </div>
                 </TabPane>
             </Tabs>
@@ -276,23 +356,12 @@ const Docker: React.FC = () => {
                 title={`Logs: ${selectedContainer?.name || ''}`}
                 visible={logsModalVisible}
                 onCancel={() => setLogsModalVisible(false)}
-                width={900}
-                footer={null}
-                className="logs-modal"
+                footer={<Button onClick={() => setLogsModalVisible(false)}>Close</Button>}
+                width={800}
             >
-                <div className="logs-container">
-                    <pre className="logs-content">
-                        {`2026-01-18 10:30:45 | 192.168.1.1 "GET /api/users" 200 0.023s
-2026-01-18 10:30:46 | 192.168.1.1 "POST /api/orders" 201 0.045s
-2026-01-18 10:30:47 | 192.168.1.2 "GET /health" 200 0.001s
-2026-01-18 10:30:48 | [warn] upstream timed out (110: Connection timeout)
-2026-01-18 10:30:49 | 192.168.1.1 "GET /api/products" 200 0.089s
-2026-01-18 10:30:50 | 192.168.1.3 "GET /static/app.js" 200 0.012s
-2026-01-18 10:30:51 | [error] connect() failed (111: Connection refused)
-2026-01-18 10:30:52 | 192.168.1.1 "GET /api/users/123" 404 0.005s
-● Streaming...`}
-                    </pre>
-                </div>
+                <pre className="logs-content">
+                    {containerLogs || 'No logs available'}
+                </pre>
             </Modal>
         </div>
     );

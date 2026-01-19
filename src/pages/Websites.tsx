@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Typography, Card, Button, Tag, Input, Select, Spin, Modal, Form, Toast } from '@douyinfe/semi-ui';
 import { IconPlus, IconSearch, IconSetting, IconFile, IconDelete } from '@douyinfe/semi-icons';
 import { useQuery } from '@tanstack/react-query';
-import { getWebsites } from '../services/mockApi';
+import { getWebsites } from '../services/api';
 import type { Website } from '../types';
 import './Websites.css';
 
@@ -99,7 +99,9 @@ const Websites: React.FC = () => {
             ) : (
                 <div className="websites-list">
                     {filteredWebsites?.map((website) => {
-                        const sslDays = getSSLDaysRemaining(website.ssl.expiresAt);
+                        // SSL expiry - may not exist in backend response
+                        const sslExpiry = (website.ssl as { expiresAt?: string })?.expiresAt;
+                        const sslDays = sslExpiry ? getSSLDaysRemaining(sslExpiry) : null;
 
                         return (
                             <Card key={website.id} className="website-card">
@@ -110,7 +112,7 @@ const Websites: React.FC = () => {
                                     </div>
                                     <Tag color={getStatusColor(website.status)} className="status-tag">
                                         {website.status === 'running' ? '● Active' :
-                                            website.status === 'updating' ? '◐ Updating' : '○ Stopped'}
+                                            website.status === 'error' ? '⚠ Error' : '○ Stopped'}
                                     </Tag>
                                 </div>
 
