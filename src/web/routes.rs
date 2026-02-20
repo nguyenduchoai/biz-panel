@@ -188,6 +188,7 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="/static/js/app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
@@ -243,7 +244,7 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
         </main>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <!-- app.js loaded in head -->
     <script>
         // Highlight active nav
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -451,9 +452,11 @@ async function loadActivities() {
     } catch(e) {}
 }
 
-initCharts();
-connectMetricsWS();
-loadActivities();
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+    connectMetricsWS();
+    loadActivities();
+});
 </script>
 "##;
 
@@ -462,10 +465,13 @@ const MAIN_APP_CONTENT: &str = r##"
     <div class="loading-spinner">Loading page content...</div>
 </div>
 <script>
-// SPA-like navigation
-const pageName = window.location.pathname.replace('/', '') || 'dashboard';
-document.getElementById('pageTitle').textContent = pageName.charAt(0).toUpperCase() + pageName.slice(1);
-loadPageContent(pageName);
+// SPA-like navigation - wait for app.js to be ready
+function initPage() {
+    const pageName = window.location.pathname.replace('/', '') || 'dashboard';
+    document.getElementById('pageTitle').textContent = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+    loadPageContent(pageName);
+}
+if (typeof fetchAPI !== 'undefined') { initPage(); } else { document.addEventListener('DOMContentLoaded', initPage); }
 
 async function loadPageContent(page) {
     const container = document.getElementById('dynamicContent');
