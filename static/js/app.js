@@ -108,12 +108,11 @@ function renderDockerPage(containers, stats, overview) {
     const list = Array.isArray(containers) ? containers : [];
     const statsList = Array.isArray(stats) ? stats : [];
     const ov = overview || {};
+    window._dkData = { containers: list, stats: statsList, overview: ov };
 
-    // Build stats lookup by container name
     const statsMap = {};
     statsList.forEach(s => { statsMap[s.name] = s; });
 
-    // Group containers by project
     const projects = {};
     list.forEach(c => {
         const proj = c.project || 'standalone';
@@ -123,118 +122,109 @@ function renderDockerPage(containers, stats, overview) {
 
     const running = list.filter(c => c.state === 'running').length;
     const stopped = list.filter(c => c.state !== 'running').length;
+    const composeCount = Object.keys(projects).filter(p => p !== 'standalone').length;
+    const diskImg = ov.diskUsage?.find(d => d.type === 'Images') || {};
+    const diskVol = ov.diskUsage?.find(d => d.type === 'Local Volumes') || {};
 
     return `
-        <!-- Docker Overview Banner -->
-        <div class="page-header">
-            <h2>🐳 Docker</h2>
-            <div class="header-actions">
-                <button class="btn btn-primary" onclick="showDeployContainerForm()">+ Deploy Container</button>
-                <button class="btn btn-secondary" onclick="showComposeForm()">📄 Compose</button>
-                <button class="btn btn-secondary" onclick="showPullImageForm()">⬇ Pull Image</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('containers')" id="dockerTabBtn-containers">Containers</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('images')" id="dockerTabBtn-images">Images</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('networks')" id="dockerTabBtn-networks">Networks</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('volumes')" id="dockerTabBtn-volumes">Volumes</button>
+        <!-- aaPanel-style Tab Bar -->
+        <div class="dk-tabs">
+            <button class="dk-tab active" onclick="switchDkTab(this,'overview')">Overview</button>
+            <button class="dk-tab" onclick="switchDkTab(this,'containers')">Container</button>
+            <button class="dk-tab" onclick="switchDkTab(this,'images')">Images</button>
+            <button class="dk-tab" onclick="switchDkTab(this,'compose')">Compose</button>
+            <button class="dk-tab" onclick="switchDkTab(this,'networks')">Network</button>
+            <button class="dk-tab" onclick="switchDkTab(this,'volumes')">Volume</button>
+            <div class="dk-tabs-right">
+                <button class="btn btn-primary btn-sm" onclick="showDeployContainerForm()">+ Deploy</button>
+                <button class="btn btn-secondary btn-sm" onclick="showComposeForm()">📄 Compose</button>
+                <button class="btn btn-secondary btn-sm" onclick="showPullImageForm()">⬇ Pull</button>
             </div>
         </div>
 
-        <!-- System Overview -->
-        <div class="dashboard-grid" style="margin-bottom:24px">
-            <div class="stat-card">
-                <div class="stat-header"><span class="stat-icon">📊</span><span class="stat-title">Containers</span></div>
-                <div class="stat-value">${list.length}</div>
-                <div class="stat-detail"><span style="color:var(--success)">● ${running} running</span> · <span style="color:var(--text-muted)">${stopped} stopped</span></div>
+        <!-- OVERVIEW TAB -->
+        <div id="dkMain-overview">
+            <div class="dk-overview-grid">
+                <div class="dk-ov-card"><div class="dk-ov-val">${list.length}</div><div class="dk-ov-lbl">Containers</div><div class="dk-ov-sub"><span class="dk-dot dk-dot-green"></span> ${running} running · ${stopped} stopped</div></div>
+                <div class="dk-ov-card"><div class="dk-ov-val">${composeCount}</div><div class="dk-ov-lbl">Compose</div><div class="dk-ov-sub">Docker Compose Projects</div></div>
+                <div class="dk-ov-card"><div class="dk-ov-val">${ov.images || 0}</div><div class="dk-ov-lbl">Images</div><div class="dk-ov-sub">Space: ${diskImg.size || '0B'}</div></div>
+                <div class="dk-ov-card"><div class="dk-ov-val">${ov.diskUsage?.find(d=>d.type==='Networks')?.total||'—'}</div><div class="dk-ov-lbl">Networks</div><div class="dk-ov-sub">Created networks</div></div>
+                <div class="dk-ov-card"><div class="dk-ov-val">${ov.diskUsage?.find(d=>d.type==='Local Volumes')?.total||'—'}</div><div class="dk-ov-lbl">Volumes</div><div class="dk-ov-sub">Space: ${diskVol.size||'0B'}</div></div>
+                <div class="dk-ov-card"><div class="dk-ov-val">v${ov.serverVersion||'—'}</div><div class="dk-ov-lbl">Docker</div><div class="dk-ov-sub">${ov.driver||'—'} · ${ov.cpus||0} CPUs</div></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-header"><span class="stat-icon">📦</span><span class="stat-title">Images</span></div>
-                <div class="stat-value">${ov.images || '—'}</div>
-                <div class="stat-detail">Docker ${ov.serverVersion || '—'}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header"><span class="stat-icon">🗂️</span><span class="stat-title">Projects</span></div>
-                <div class="stat-value">${Object.keys(projects).length}</div>
-                <div class="stat-detail">${ov.driver || '—'} driver</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header"><span class="stat-icon">💾</span><span class="stat-title">Disk Usage</span></div>
-                <div class="stat-value">${ov.diskUsage && ov.diskUsage[0] ? ov.diskUsage[0].size : '—'}</div>
-                <div class="stat-detail">${ov.diskUsage && ov.diskUsage[0] ? ov.diskUsage[0].reclaimable + ' reclaimable' : ''}</div>
-            </div>
-        </div>
 
-        <!-- Container Tab -->
-        <div id="dockerTab-containers">
-            ${list.length === 0 ? '<div class="empty-state">No containers found. Deploy from App Store or use docker-compose.</div>' : ''}
-            ${Object.keys(projects).sort().map(proj => `
-                <div class="docker-project-group">
-                    <div class="docker-project-header">
-                        <div class="docker-project-title">
-                            <span style="font-size:18px">${proj === 'standalone' ? '📦' : '🗂️'}</span>
-                            <span>${proj === 'standalone' ? 'Standalone Containers' : proj}</span>
-                            <span class="tag tag-blue" style="margin-left:8px">${projects[proj].length} container${projects[proj].length > 1 ? 's' : ''}</span>
+            <div class="dk-section-header">
+                <h3>Container List</h3>
+                <div class="dk-filters">
+                    <select id="dkFilterStatus" onchange="filterDkContainers()"><option value="all">All</option><option value="running">Running</option><option value="stopped">Stopped</option></select>
+                    <input type="text" id="dkSearch" placeholder="Search container or image..." onkeyup="filterDkContainers()" class="dk-search-input">
+                </div>
+            </div>
+
+            <div class="dk-card-grid" id="dkCardGrid">
+                ${list.length === 0 ? '<div class="empty-state" style="grid-column:1/-1">No containers. Click + Deploy to get started.</div>' : ''}
+                ${list.map(c => {
+                    const s = statsMap[c.name] || {};
+                    const isRunning = c.state === 'running';
+                    const cpuVal = parseFloat(s.cpu) || 0;
+                    const memPct = parseFloat(s.memPercent) || 0;
+                    return `
+                    <div class="dk-card" data-state="${c.state}" data-name="${(c.name||'').toLowerCase()}" data-image="${(c.image||'').toLowerCase()}" onclick="showContainerDetail('${c.id}','${c.name.replace(/'/g,"\\'")}')">
+                        <div class="dk-card-top">
+                            <div class="dk-card-title"><span class="dk-dot ${isRunning?'dk-dot-green':'dk-dot-red'}"></span><span class="dk-card-name">${c.name}</span></div>
+                            <div class="dk-card-image">${c.image}</div>
+                            <div class="dk-card-date">${c.created?'Create at: '+c.created.substring(0,19):''}</div>
                         </div>
-                    </div>
+                        <div class="dk-card-bottom">
+                            <div class="dk-bar-row"><span class="dk-bar-lbl">CPU</span><div class="dk-bar"><div class="dk-bar-fill dk-bar-cpu" style="width:${Math.min(cpuVal,100)}%"></div></div><span class="dk-bar-val">${s.cpu||'0%'}</span></div>
+                            <div class="dk-bar-row"><span class="dk-bar-lbl">RAM</span><div class="dk-bar"><div class="dk-bar-fill dk-bar-ram" style="width:${Math.min(memPct,100)}%"></div></div><span class="dk-bar-val">${s.memUsage||'0B'}</span></div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+
+        <!-- CONTAINER TAB (project grouped) -->
+        <div id="dkMain-containers" style="display:none">
+            ${Object.keys(projects).sort((a,b)=>a==='standalone'?1:b==='standalone'?-1:a.localeCompare(b)).map(proj => `
+                <div class="docker-project-group">
+                    <div class="docker-project-header"><div class="docker-project-title">
+                        <span style="font-size:18px">${proj==='standalone'?'📦':'🗂️'}</span>
+                        <span>${proj==='standalone'?'Standalone Containers':proj}</span>
+                        <span class="tag tag-blue">${projects[proj].length}</span>
+                    </div></div>
                     <div class="docker-container-list">
                         ${projects[proj].map(c => {
-                            const s = statsMap[c.name] || {};
-                            const isRunning = c.state === 'running';
-                            return `
-                            <div class="docker-container-card ${isRunning ? '' : 'docker-stopped'}">
+                            const s = statsMap[c.name]||{};
+                            const isR = c.state==='running';
+                            return `<div class="docker-container-card ${isR?'':'docker-stopped'}">
                                 <div class="docker-container-main">
                                     <div class="docker-container-left">
-                                        <div class="docker-container-status">
-                                            <span class="docker-status-dot ${isRunning ? 'status-running' : 'status-stopped'}"></span>
-                                        </div>
+                                        <span class="dk-dot ${isR?'dk-dot-green':'dk-dot-red'}"></span>
                                         <div class="docker-container-info">
                                             <div class="docker-container-name">${c.name}</div>
                                             <div class="docker-container-image">${c.image}</div>
                                         </div>
                                     </div>
                                     <div class="docker-container-right">
-                                        ${isRunning ? `
-                                        <div class="docker-stats-grid">
-                                            <div class="docker-stat-item">
-                                                <span class="docker-stat-label">CPU</span>
-                                                <span class="docker-stat-value">${s.cpu || '0%'}</span>
-                                            </div>
-                                            <div class="docker-stat-item">
-                                                <span class="docker-stat-label">Memory</span>
-                                                <span class="docker-stat-value">${s.memUsage || '—'}</span>
-                                            </div>
-                                            <div class="docker-stat-item">
-                                                <span class="docker-stat-label">Net I/O</span>
-                                                <span class="docker-stat-value">${s.netIO || '—'}</span>
-                                            </div>
-                                            <div class="docker-stat-item">
-                                                <span class="docker-stat-label">Block I/O</span>
-                                                <span class="docker-stat-value">${s.blockIO || '—'}</span>
-                                            </div>
-                                            <div class="docker-stat-item">
-                                                <span class="docker-stat-label">PIDs</span>
-                                                <span class="docker-stat-value">${s.pids || '—'}</span>
-                                            </div>
-                                        </div>
-                                        ` : `
-                                        <div class="docker-stopped-info">
-                                            <span class="status-badge status-stopped">${c.state}</span>
-                                            <span style="color:var(--text-muted);font-size:12px;margin-left:8px">${c.status}</span>
-                                        </div>
-                                        `}
+                                        ${isR?`<div class="docker-stats-grid">
+                                            <div class="docker-stat-item"><span class="docker-stat-label">CPU</span><span class="docker-stat-value">${s.cpu||'0%'}</span></div>
+                                            <div class="docker-stat-item"><span class="docker-stat-label">Memory</span><span class="docker-stat-value">${s.memUsage||'—'}</span></div>
+                                            <div class="docker-stat-item"><span class="docker-stat-label">Net I/O</span><span class="docker-stat-value">${s.netIO||'—'}</span></div>
+                                            <div class="docker-stat-item"><span class="docker-stat-label">PIDs</span><span class="docker-stat-value">${s.pids||'—'}</span></div>
+                                        </div>`:`<span class="status-badge status-stopped">${c.state}</span>`}
                                     </div>
                                 </div>
                                 <div class="docker-container-meta">
                                     <div class="docker-meta-tags">
-                                        ${c.ports ? `<span class="tag" title="Ports">${c.ports.substring(0,60)}${c.ports.length>60?'...':''}</span>` : ''}
-                                        ${c.networks ? `<span class="tag" title="Networks">🌐 ${c.networks}</span>` : ''}
-                                        ${c.service ? `<span class="tag tag-blue" title="Compose service">${c.service}</span>` : ''}
+                                        ${c.ports?`<span class="tag">${c.ports.substring(0,50)}</span>`:''}
+                                        ${c.networks?`<span class="tag">🌐 ${c.networks}</span>`:''}
                                     </div>
                                     <div class="docker-container-actions">
-                                        ${!isRunning ? `<button class="btn btn-success btn-sm" onclick="dockerAction('${c.id}','start')">▶ Start</button>` : ''}
-                                        ${isRunning ? `<button class="btn btn-sm btn-secondary" onclick="dockerAction('${c.id}','stop')">⏹ Stop</button>` : ''}
-                                        <button class="btn btn-sm btn-secondary" onclick="dockerAction('${c.id}','restart')">↺ Restart</button>
-                                        <button class="btn btn-sm btn-secondary" onclick="viewContainerLogs('${c.id}','${c.name}')">📋 Logs</button>
-                                        <button class="btn btn-danger btn-sm" onclick="dockerAction('${c.id}','remove')">Remove</button>
+                                        ${!isR?`<button class="btn btn-success btn-sm" onclick="event.stopPropagation();dockerAction('${c.id}','start')">Start</button>`:''}
+                                        ${isR?`<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();dockerAction('${c.id}','stop')">Stop</button>`:''}
+                                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();dockerAction('${c.id}','restart')">Restart</button>
+                                        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();showContainerDetail('${c.id}','${c.name.replace(/'/g,"\\'")}')">Settings</button>
                                     </div>
                                 </div>
                             </div>`;
@@ -244,13 +234,11 @@ function renderDockerPage(containers, stats, overview) {
             `).join('')}
         </div>
 
-        <!-- Images / Networks / Volumes tabs (lazy loaded) -->
-        <div id="dockerTab-images" style="display:none"></div>
-        <div id="dockerTab-networks" style="display:none"></div>
-        <div id="dockerTab-volumes" style="display:none"></div>
-
-        <!-- Container Logs Modal -->
-        <div id="containerLogsModal" style="display:none"></div>
+        <!-- Lazy tabs -->
+        <div id="dkMain-images" style="display:none"></div>
+        <div id="dkMain-compose" style="display:none"></div>
+        <div id="dkMain-networks" style="display:none"></div>
+        <div id="dkMain-volumes" style="display:none"></div>
     `;
 }
 
@@ -460,22 +448,32 @@ async function viewContainerLogs(id, name) {
     );
 }
 
-async function showDockerTab(tab) {
-    ['containers','images','networks','volumes'].forEach(t => {
-        const el = document.getElementById('dockerTab-' + t);
+// ===== DOCKER TAB SWITCHING (aaPanel-style) =====
+function switchDkTab(btn, tab) {
+    document.querySelectorAll('.dk-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    ['overview','containers','images','compose','networks','volumes'].forEach(t => {
+        const el = document.getElementById('dkMain-' + t);
         if (el) el.style.display = t === tab ? 'block' : 'none';
     });
 
-    const tabEl = document.getElementById('dockerTab-' + tab);
+    // Lazy load tab content
+    const tabEl = document.getElementById('dkMain-' + tab);
     if (!tabEl || tabEl.dataset.loaded) return;
-
     tabEl.innerHTML = '<div class="loading-spinner">Loading...</div>';
+    loadDkTabContent(tab, tabEl);
+}
 
+async function loadDkTabContent(tab, tabEl) {
     if (tab === 'images') {
         const images = await fetchAPI('/api/docker/images').catch(() => []);
         const list = Array.isArray(images) ? images : [];
         tabEl.innerHTML = `
-            <div class="data-table-wrapper" style="margin-top:8px">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+                <button class="btn btn-primary btn-sm" onclick="showPullImageForm()">⬇ Pull Image</button>
+            </div>
+            <div class="data-table-wrapper">
             <table class="data-table"><thead><tr><th>Repository</th><th>Tag</th><th>ID</th><th>Size</th><th>Created</th><th>Actions</th></tr></thead>
             <tbody>${list.map(i => `<tr>
                 <td style="font-weight:600">${i.repository}</td><td><span class="tag">${i.tag}</span></td>
@@ -483,6 +481,33 @@ async function showDockerTab(tab) {
                 <td>${i.size}</td><td>${i.created}</td>
                 <td><button class="btn btn-danger btn-sm" onclick="removeDockerImage('${i.id}')">Remove</button></td>
             </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No images</td></tr>'}</tbody></table></div>`;
+    } else if (tab === 'compose') {
+        // Show compose projects from container data
+        const data = window._dkData || {};
+        const list = data.containers || [];
+        const projects = {};
+        list.forEach(c => { const p = c.project||'standalone'; if(p!=='standalone'){ if(!projects[p]) projects[p]=[]; projects[p].push(c); }});
+        tabEl.innerHTML = `
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+                <button class="btn btn-primary btn-sm" onclick="showComposeForm()">📄 Deploy Compose</button>
+            </div>
+            ${Object.keys(projects).length === 0 ? '<div class="empty-state">No compose projects. Deploy one using the Compose button.</div>' : ''}
+            ${Object.keys(projects).map(p => `
+                <div class="docker-project-group" style="margin-bottom:16px">
+                    <div class="docker-project-header"><div class="docker-project-title">
+                        <span style="font-size:18px">🗂️</span> <span>${p}</span> <span class="tag tag-blue">${projects[p].length}</span>
+                    </div></div>
+                    <div style="padding:12px">
+                        ${projects[p].map(c => `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                            <div><span class="dk-dot ${c.state==='running'?'dk-dot-green':'dk-dot-red'}"></span> <strong>${c.name}</strong> <span style="color:var(--text-muted);margin-left:8px">${c.image}</span></div>
+                            <div style="display:flex;gap:6px">
+                                <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();dockerAction('${c.id}','restart')">Restart</button>
+                                <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();showContainerDetail('${c.id}','${c.name.replace(/'/g,"\\'")}')">Settings</button>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+                </div>
+            `).join('')}`;
     } else if (tab === 'networks') {
         const nets = await fetchAPI('/api/docker/networks').catch(() => []);
         const list = Array.isArray(nets) ? nets : [];
@@ -495,13 +520,13 @@ async function showDockerTab(tab) {
             <tbody>${list.map(n => `<tr>
                 <td style="font-weight:600">${n.name}</td><td><span class="tag">${n.driver}</span></td>
                 <td>${n.scope}</td><td style="font-family:var(--font-mono);font-size:12px">${(n.id||'').substring(0,12)}</td>
-                <td>${['bridge','host','none'].includes(n.name) ? '' : `<button class="btn btn-danger btn-sm" onclick="removeDockerNetwork('${n.id}')">Remove</button>`}</td>
+                <td>${['bridge','host','none'].includes(n.name)?'':`<button class="btn btn-danger btn-sm" onclick="removeDockerNetwork('${n.id}')">Remove</button>`}</td>
             </tr>`).join('') || '<tr><td colspan="5" class="empty-state">No networks</td></tr>'}</tbody></table></div>`;
     } else if (tab === 'volumes') {
         const vols = await fetchAPI('/api/docker/volumes').catch(() => []);
         const list = Array.isArray(vols) ? vols : [];
         tabEl.innerHTML = `
-            <div class="data-table-wrapper" style="margin-top:8px">
+            <div class="data-table-wrapper">
             <table class="data-table"><thead><tr><th>Name</th><th>Driver</th><th>Mountpoint</th><th>Actions</th></tr></thead>
             <tbody>${list.map(v => `<tr>
                 <td style="font-weight:600;font-family:var(--font-mono);font-size:13px">${v.name}</td><td><span class="tag">${v.driver}</span></td>
@@ -512,9 +537,132 @@ async function showDockerTab(tab) {
     tabEl.dataset.loaded = '1';
 }
 
-async function removeDockerImage(id) { if (!confirm('Remove image?')) return; await deleteAPI(`/api/docker/images/${id}`); showToast('Image removed'); const el=document.getElementById('dockerTab-images'); if(el) el.dataset.loaded=''; showDockerTab('images'); }
-async function removeDockerNetwork(id) { if (!confirm('Remove network?')) return; await deleteAPI(`/api/docker/networks/${id}`); showToast('Network removed'); const el=document.getElementById('dockerTab-networks'); if(el) el.dataset.loaded=''; showDockerTab('networks'); }
-async function removeDockerVolume(name) { if (!confirm('Remove volume?')) return; await deleteAPI(`/api/docker/volumes/${name}`); showToast('Volume removed'); const el=document.getElementById('dockerTab-volumes'); if(el) el.dataset.loaded=''; showDockerTab('volumes'); }
+// Search/filter containers on overview
+function filterDkContainers() {
+    const status = document.getElementById('dkFilterStatus')?.value || 'all';
+    const search = (document.getElementById('dkSearch')?.value || '').toLowerCase();
+    document.querySelectorAll('#dkCardGrid .dk-card').forEach(card => {
+        const state = card.dataset.state;
+        const name = card.dataset.name || '';
+        const image = card.dataset.image || '';
+        let show = true;
+        if (status === 'running' && state !== 'running') show = false;
+        if (status === 'stopped' && state === 'running') show = false;
+        if (search && !name.includes(search) && !image.includes(search)) show = false;
+        card.style.display = show ? '' : 'none';
+    });
+}
+
+// aaPanel-style Container Detail Modal with sidebar tabs
+async function showContainerDetail(id, name) {
+    const data = await fetchAPI(`/api/docker/containers/${id}`).catch(() => null);
+    if (!data) { showToast('Failed to load container info', 'error'); return; }
+
+    const info = Array.isArray(data) ? data[0] : data;
+    const state = info?.State || {};
+    const config = info?.Config || {};
+    const netSettings = info?.NetworkSettings || {};
+    const mounts = info?.Mounts || [];
+    const hostConfig = info?.HostConfig || {};
+    const isRunning = state.Running;
+
+    showModal('Container Manage [' + name + ']', `
+        <div style="display:flex;gap:20px;min-height:400px">
+            <!-- Sidebar -->
+            <div class="dk-detail-sidebar">
+                <button class="dk-detail-tab active" onclick="switchDetailTab(this,'status')">Container status</button>
+                <button class="dk-detail-tab" onclick="switchDetailTab(this,'details')">Container details</button>
+                <button class="dk-detail-tab" onclick="switchDetailTab(this,'volumes')">Storage volumes</button>
+                <button class="dk-detail-tab" onclick="switchDetailTab(this,'network')">Container network</button>
+                <button class="dk-detail-tab" onclick="switchDetailTab(this,'restart')">Reboot strategy</button>
+                <button class="dk-detail-tab" onclick="switchDetailTab(this,'logs')">Real-time logs</button>
+            </div>
+            <!-- Content -->
+            <div style="flex:1;overflow-y:auto;max-height:500px">
+                <div id="dkDetail-status">
+                    <div style="margin-bottom:16px">
+                        <span style="font-weight:600">Current Status:</span>
+                        <span class="status-badge ${isRunning?'status-running':'status-stopped'}" style="margin-left:8px">${isRunning?'Running':'Stopped'}</span>
+                        <span class="dk-dot ${isRunning?'dk-dot-green':'dk-dot-red'}" style="margin-left:4px"></span>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:24px">
+                        ${!isRunning?`<button class="btn btn-success btn-sm" onclick="dockerAction('${id}','start');closeModal()">Start</button>`:''}
+                        ${isRunning?`<button class="btn btn-sm btn-secondary" onclick="dockerAction('${id}','stop');closeModal()">Stop</button>`:''}
+                        <button class="btn btn-sm btn-secondary" onclick="dockerAction('${id}','restart');closeModal()">Restart</button>
+                        <button class="btn btn-danger btn-sm" onclick="dockerAction('${id}','remove');closeModal()">Remove</button>
+                    </div>
+                    <table class="dk-detail-table">
+                        <tr><td class="dk-dt-label">Container name</td><td>${name}</td></tr>
+                        <tr><td class="dk-dt-label">Container ID</td><td style="font-family:var(--font-mono);font-size:12px">${(info?.Id||'').substring(0,24)}</td></tr>
+                        <tr><td class="dk-dt-label">Image</td><td>${config.Image||'—'}</td></tr>
+                        <tr><td class="dk-dt-label">Status</td><td>${state.Status||'—'}</td></tr>
+                        <tr><td class="dk-dt-label">Created</td><td>${info?.Created?.substring(0,19)||'—'}</td></tr>
+                        <tr><td class="dk-dt-label">Started</td><td>${state.StartedAt?.substring(0,19)||'—'}</td></tr>
+                        <tr><td class="dk-dt-label">Ports</td><td style="font-family:var(--font-mono);font-size:12px">${Object.keys(netSettings.Ports||{}).join(', ')||'—'}</td></tr>
+                        <tr><td class="dk-dt-label">IP</td><td style="font-family:var(--font-mono)">${netSettings.IPAddress||'—'}</td></tr>
+                    </table>
+                </div>
+                <div id="dkDetail-details" style="display:none">
+                    <h4 style="margin-bottom:12px">Environment Variables</h4>
+                    <table class="dk-detail-table">${(config.Env||[]).map(e=>`<tr><td class="dk-dt-label">${e.split('=')[0]}</td><td style="font-family:var(--font-mono);font-size:12px;word-break:break-all">${e.split('=').slice(1).join('=')}</td></tr>`).join('')||'<tr><td>No env vars</td></tr>'}</table>
+                    <h4 style="margin:16px 0 12px">Labels</h4>
+                    <table class="dk-detail-table">${Object.entries(config.Labels||{}).map(([k,v])=>`<tr><td class="dk-dt-label">${k}</td><td style="font-family:var(--font-mono);font-size:11px;word-break:break-all">${v}</td></tr>`).join('')||'<tr><td>No labels</td></tr>'}</table>
+                </div>
+                <div id="dkDetail-volumes" style="display:none">
+                    <h4 style="margin-bottom:12px">Storage Volumes</h4>
+                    <table class="dk-detail-table">
+                        <tr><th>Source</th><th>Destination</th><th>Mode</th></tr>
+                        ${mounts.map(m=>`<tr><td style="font-family:var(--font-mono);font-size:12px">${m.Source||'—'}</td><td style="font-family:var(--font-mono);font-size:12px">${m.Destination||'—'}</td><td>${m.Mode||'rw'}</td></tr>`).join('')||'<tr><td colspan="3">No volumes</td></tr>'}
+                    </table>
+                </div>
+                <div id="dkDetail-network" style="display:none">
+                    <h4 style="margin-bottom:12px">Container Network</h4>
+                    <table class="dk-detail-table">
+                        ${Object.entries(netSettings.Networks||{}).map(([name,net])=>`
+                            <tr><td class="dk-dt-label">Network</td><td><strong>${name}</strong></td></tr>
+                            <tr><td class="dk-dt-label">IP</td><td style="font-family:var(--font-mono)">${net.IPAddress||'—'}</td></tr>
+                            <tr><td class="dk-dt-label">Gateway</td><td style="font-family:var(--font-mono)">${net.Gateway||'—'}</td></tr>
+                            <tr><td class="dk-dt-label">MAC</td><td style="font-family:var(--font-mono)">${net.MacAddress||'—'}</td></tr>
+                        `).join('')||'<tr><td>No networks</td></tr>'}
+                    </table>
+                </div>
+                <div id="dkDetail-restart" style="display:none">
+                    <h4 style="margin-bottom:12px">Reboot Strategy</h4>
+                    <table class="dk-detail-table">
+                        <tr><td class="dk-dt-label">Restart Policy</td><td><strong>${hostConfig.RestartPolicy?.Name||'no'}</strong></td></tr>
+                        <tr><td class="dk-dt-label">Max Retry</td><td>${hostConfig.RestartPolicy?.MaximumRetryCount||0}</td></tr>
+                        <tr><td class="dk-dt-label">Restart Count</td><td>${info?.RestartCount||0}</td></tr>
+                    </table>
+                </div>
+                <div id="dkDetail-logs" style="display:none">
+                    <h4 style="margin-bottom:12px">Real-time Logs</h4>
+                    <div id="dkDetailLogsContent"><button class="btn btn-primary btn-sm" onclick="loadDetailLogs('${id}')">Load Logs</button></div>
+                </div>
+            </div>
+        </div>
+    `, () => {});
+}
+
+function switchDetailTab(btn, tab) {
+    btn.closest('.dk-detail-sidebar').querySelectorAll('.dk-detail-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['status','details','volumes','network','restart','logs'].forEach(t => {
+        const el = document.getElementById('dkDetail-' + t);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+    });
+}
+
+async function loadDetailLogs(id) {
+    const el = document.getElementById('dkDetailLogsContent');
+    if (!el) return;
+    el.innerHTML = '<div class="loading-spinner">Loading logs...</div>';
+    const data = await fetchAPI(`/api/docker/containers/${id}/logs`).catch(() => ({}));
+    el.innerHTML = `<pre style="max-height:350px;overflow:auto;font-size:12px;color:var(--text-secondary);background:#000;padding:16px;border-radius:8px;font-family:var(--font-mono);white-space:pre-wrap;border:1px solid var(--border)">${(data.logs||'No logs').replace(/</g,'&lt;')}</pre>`;
+}
+
+async function removeDockerImage(id) { if (!confirm('Remove image?')) return; await deleteAPI(`/api/docker/images/${id}`); showToast('Image removed'); const el=document.getElementById('dkMain-images'); if(el) el.dataset.loaded=''; switchDkTab(document.querySelector('.dk-tab:nth-child(3)'),'images'); }
+async function removeDockerNetwork(id) { if (!confirm('Remove network?')) return; await deleteAPI(`/api/docker/networks/${id}`); showToast('Network removed'); const el=document.getElementById('dkMain-networks'); if(el) el.dataset.loaded=''; switchDkTab(document.querySelector('.dk-tab:nth-child(5)'),'networks'); }
+async function removeDockerVolume(name) { if (!confirm('Remove volume?')) return; await deleteAPI(`/api/docker/volumes/${name}`); showToast('Volume removed'); const el=document.getElementById('dkMain-volumes'); if(el) el.dataset.loaded=''; switchDkTab(document.querySelector('.dk-tab:nth-child(6)'),'volumes'); }
 
 // ===== DEPLOY CONTAINER FORM =====
 function showDeployContainerForm() {
