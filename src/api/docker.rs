@@ -172,11 +172,134 @@ pub async fn assign_project(Path(id): Path<String>, Json(body): Json<serde_json:
         return (StatusCode::BAD_REQUEST, Json(json!({"error": "Project name required"}))).into_response();
     }
 
-    // Use docker label to tag the container with a project
-    // Note: Docker doesn't support changing labels on running containers
-    // So we store this in SQLite instead
-    // For now, return success - the frontend will manage project assignments locally
     Json(json!({"message": format!("Container {} assigned to project {}", id, project)})).into_response()
+}
+
+/// Create and run a new container
+pub async fn create_container(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let image = body.get("image").and_then(|v| v.as_str()).unwrap_or("");
+    let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let project = body.get("project").and_then(|v| v.as_str()).unwrap_or("");
+    let restart = body.get("restart").and_then(|v| v.as_str()).unwrap_or("unless-stopped");
+    let network = body.get("network").and_then(|v| v.as_str()).unwrap_or("");
+    let command = body.get("command").and_then(|v| v.as_str()).unwrap_or("");
+
+    if image.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Image is required"}))).into_response();
+    }
+
+    // Build docker run arguments
+    let mut args: Vec<String> = vec!["run".into(), "-d".into()];
+
+    // Container name
+    if !name.is_empty() {
+        args.push("--name".into());
+        args.push(name.to_string());
+    }
+
+    // Restart policy
+    args.push("--restart".into());
+    args.push(restart.to_string());
+
+    // Network
+    if !network.is_empty() {
+        args.push("--network".into());
+        args.push(network.to_string());
+    }
+
+    // Project label
+    if !project.is_empty() {
+        args.push("--label".into());
+        args.push(format!("bizpanel.project={}", project));
+    }
+
+    // Ports: array of { host: "8080", container: "80", protocol: "tcp" }
+    if let Some(ports) = body.get("ports").and_then(|v| v.as_array()) {
+        for p in ports {
+            let host = p.get("host").and_then(|v| v.as_str()).unwrap_or("");
+            let container = p.get("container").and_then(|v| v.as_str()).unwrap_or("");
+            let proto = p.get("protocol").and_then(|v| v.as_str()).unwrap_or("tcp");
+            if !host.is_empty() && !container.is_empty() {
+                args.push("-p".into());
+                args.push(format!("{}:{}/{}", host, container, proto));
+            }
+        }
+    }
+
+    // Volumes: array of { host: "/data/db", container: "/var/lib/mysql", mode: "rw" }
+    if let Some(volumes) = body.get("volumes").and_then(|v| v.as_array()) {
+        for vol in volumes {
+            let host = vol.get("host").and_then(|v| v.as_str()).unwrap_or("");
+            let container = vol.get("container").and_then(|v| v.as_str()).unwrap_or("");
+            let mode = vol.get("mode").and_then(|v| v.as_str()).unwrap_or("rw");
+            if !host.is_empty() && !container.is_empty() {
+                args.push("-v".into());
+                args.push(format!("{}:{}:{}", host, container, mode));
+            }
+        }
+    }
+
+    // Environment variables: array of { key: "MYSQL_ROOT_PASSWORD", value: "secret" }
+    if let Some(envs) = body.get("env").and_then(|v| v.as_array()) {
+        for e in envs {
+            let key = e.get("key").and_then(|v| v.as_str()).unwrap_or("");
+            let val = e.get("value").and_then(|v| v.as_str()).unwrap_or("");
+            if !key.is_empty() {
+                args.push("-e".into());
+                args.push(format!("{}={}", key, val));
+            }
+        }
+    }
+
+    // Memory limit
+    if let Some(mem) = body.get("memory").and_then(|v| v.as_str()) {
+        if !mem.is_empty() {
+            args.push("--memory".into());
+            args.push(mem.to_string());
+        }
+    }
+
+    // CPU limit
+    if let Some(cpus) = body.get("cpus").and_then(|v| v.as_str()) {
+        if !cpus.is_empty() {
+            args.push("--cpus".into());
+            args.push(cpus.to_string());
+        }
+    }
+
+    // Image
+    args.push(image.to_string());
+
+    // Command
+    if !command.is_empty() {
+        for part in command.split_whitespace() {
+            args.push(part.to_string());
+        }
+    }
+
+    let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    match docker_cmd_check(&str_args) {
+        Ok(container_id) => {
+            (StatusCode::CREATED, Json(json!({
+                "message": "Container created and started",
+                "containerId": container_id.trim()
+            }))).into_response()
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
+    }
+}
+
+/// Pull an image from Docker Hub
+pub async fn pull_image(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let image = body.get("image").and_then(|v| v.as_str()).unwrap_or("");
+    if image.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Image name required"}))).into_response();
+    }
+
+    match docker_cmd_check(&["pull", image]) {
+        Ok(output) => Json(json!({"message": "Image pulled successfully", "output": output.trim()})).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
+    }
 }
 
 pub async fn get_container(Path(id): Path<String>) -> impl IntoResponse {

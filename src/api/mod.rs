@@ -74,8 +74,9 @@ fn protected_routes() -> Router {
         .route("/terminal/ws", get(terminal::create_terminal))
         .route("/terminal/exec", post(terminal::execute_command))
         // Docker
-        .route("/docker/containers", get(docker::list_containers))
+        .route("/docker/containers", get(docker::list_containers).post(docker::create_container))
         .route("/docker/containers/stats", get(docker::list_containers_stats))
+        .route("/docker/images/pull", post(docker::pull_image))
         .route("/docker/containers/{id}", get(docker::get_container).delete(docker::remove_container))
         .route("/docker/containers/{id}/start", post(docker::start_container))
         .route("/docker/containers/{id}/stop", post(docker::stop_container))

@@ -129,10 +129,12 @@ function renderDockerPage(containers, stats, overview) {
         <div class="page-header">
             <h2>🐳 Docker</h2>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="showDockerTab('containers')">Containers</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('images')">Images</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('networks')">Networks</button>
-                <button class="btn btn-secondary" onclick="showDockerTab('volumes')">Volumes</button>
+                <button class="btn btn-primary" onclick="showDeployContainerForm()">+ Deploy Container</button>
+                <button class="btn btn-secondary" onclick="showPullImageForm()">⬇ Pull Image</button>
+                <button class="btn btn-secondary" onclick="showDockerTab('containers')" id="dockerTabBtn-containers">Containers</button>
+                <button class="btn btn-secondary" onclick="showDockerTab('images')" id="dockerTabBtn-images">Images</button>
+                <button class="btn btn-secondary" onclick="showDockerTab('networks')" id="dockerTabBtn-networks">Networks</button>
+                <button class="btn btn-secondary" onclick="showDockerTab('volumes')" id="dockerTabBtn-volumes">Volumes</button>
             </div>
         </div>
 
@@ -506,9 +508,215 @@ async function showDockerTab(tab) {
     tabEl.dataset.loaded = '1';
 }
 
-async function removeDockerImage(id) { if (!confirm('Remove image?')) return; await deleteAPI(`/api/docker/images/${id}`); showToast('Image removed'); showDockerTab('images'); }
-async function removeDockerNetwork(id) { if (!confirm('Remove network?')) return; await deleteAPI(`/api/docker/networks/${id}`); showToast('Network removed'); showDockerTab('networks'); }
-async function removeDockerVolume(name) { if (!confirm('Remove volume?')) return; await deleteAPI(`/api/docker/volumes/${name}`); showToast('Volume removed'); showDockerTab('volumes'); }
+async function removeDockerImage(id) { if (!confirm('Remove image?')) return; await deleteAPI(`/api/docker/images/${id}`); showToast('Image removed'); const el=document.getElementById('dockerTab-images'); if(el) el.dataset.loaded=''; showDockerTab('images'); }
+async function removeDockerNetwork(id) { if (!confirm('Remove network?')) return; await deleteAPI(`/api/docker/networks/${id}`); showToast('Network removed'); const el=document.getElementById('dockerTab-networks'); if(el) el.dataset.loaded=''; showDockerTab('networks'); }
+async function removeDockerVolume(name) { if (!confirm('Remove volume?')) return; await deleteAPI(`/api/docker/volumes/${name}`); showToast('Volume removed'); const el=document.getElementById('dockerTab-volumes'); if(el) el.dataset.loaded=''; showDockerTab('volumes'); }
+
+// ===== DEPLOY CONTAINER FORM =====
+function showDeployContainerForm() {
+    showModal('🐳 Deploy New Container', `
+        <div style="max-height:60vh;overflow-y:auto;padding-right:8px">
+            <div class="form-group">
+                <label>Image *</label>
+                <input type="text" id="dc-image" placeholder="nginx:latest, mysql:8, redis:alpine...">
+            </div>
+            <div class="form-group">
+                <label>Container Name *</label>
+                <input type="text" id="dc-name" placeholder="my-nginx">
+            </div>
+            <div class="form-group">
+                <label>Project (for grouping)</label>
+                <input type="text" id="dc-project" placeholder="my-app, website-prod...">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group">
+                    <label>Restart Policy</label>
+                    <select id="dc-restart">
+                        <option value="unless-stopped" selected>Unless Stopped</option>
+                        <option value="always">Always</option>
+                        <option value="on-failure">On Failure</option>
+                        <option value="no">Never</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Network</label>
+                    <input type="text" id="dc-network" placeholder="bridge (default)">
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="form-group">
+                    <label>Memory Limit</label>
+                    <input type="text" id="dc-memory" placeholder="512m, 1g...">
+                </div>
+                <div class="form-group">
+                    <label>CPU Limit</label>
+                    <input type="text" id="dc-cpus" placeholder="0.5, 1, 2...">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Ports <button type="button" class="btn btn-sm" onclick="addDcRow('ports')" style="float:right;padding:4px 8px;font-size:11px">+ Add Port</button></label>
+                <div id="dc-ports">
+                    <div class="dc-row" style="display:flex;gap:8px;margin-bottom:8px">
+                        <input type="text" placeholder="Host port (8080)" style="flex:1" class="dc-port-host">
+                        <input type="text" placeholder="Container port (80)" style="flex:1" class="dc-port-container">
+                        <select style="width:80px" class="dc-port-proto"><option>tcp</option><option>udp</option></select>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Volumes <button type="button" class="btn btn-sm" onclick="addDcRow('volumes')" style="float:right;padding:4px 8px;font-size:11px">+ Add Volume</button></label>
+                <div id="dc-volumes">
+                    <div class="dc-row" style="display:flex;gap:8px;margin-bottom:8px">
+                        <input type="text" placeholder="Host path (/data)" style="flex:1" class="dc-vol-host">
+                        <input type="text" placeholder="Container path (/var)" style="flex:1" class="dc-vol-container">
+                        <select style="width:70px" class="dc-vol-mode"><option>rw</option><option>ro</option></select>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Environment Variables <button type="button" class="btn btn-sm" onclick="addDcRow('env')" style="float:right;padding:4px 8px;font-size:11px">+ Add Var</button></label>
+                <div id="dc-env">
+                    <div class="dc-row" style="display:flex;gap:8px;margin-bottom:8px">
+                        <input type="text" placeholder="KEY" style="flex:1" class="dc-env-key">
+                        <input type="text" placeholder="value" style="flex:1" class="dc-env-value">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Command (optional)</label>
+                <input type="text" id="dc-command" placeholder="e.g. --appendonly yes">
+            </div>
+        </div>
+    `, deployContainer);
+}
+
+function addDcRow(type) {
+    const container = document.getElementById('dc-' + type);
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'dc-row';
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px';
+
+    if (type === 'ports') {
+        row.innerHTML = '<input type="text" placeholder="Host port" style="flex:1" class="dc-port-host"><input type="text" placeholder="Container port" style="flex:1" class="dc-port-container"><select style="width:80px" class="dc-port-proto"><option>tcp</option><option>udp</option></select><button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>';
+    } else if (type === 'volumes') {
+        row.innerHTML = '<input type="text" placeholder="Host path" style="flex:1" class="dc-vol-host"><input type="text" placeholder="Container path" style="flex:1" class="dc-vol-container"><select style="width:70px" class="dc-vol-mode"><option>rw</option><option>ro</option></select><button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>';
+    } else if (type === 'env') {
+        row.innerHTML = '<input type="text" placeholder="KEY" style="flex:1" class="dc-env-key"><input type="text" placeholder="value" style="flex:1" class="dc-env-value"><button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:6px 8px">✕</button>';
+    }
+    container.appendChild(row);
+}
+
+async function deployContainer() {
+    const image = document.getElementById('dc-image')?.value?.trim();
+    const name = document.getElementById('dc-name')?.value?.trim();
+    if (!image) { showToast('Image is required', 'error'); return; }
+    if (!name) { showToast('Container name is required', 'error'); return; }
+
+    // Collect ports
+    const ports = [];
+    document.querySelectorAll('#dc-ports .dc-row').forEach(row => {
+        const h = row.querySelector('.dc-port-host')?.value?.trim();
+        const c = row.querySelector('.dc-port-container')?.value?.trim();
+        const p = row.querySelector('.dc-port-proto')?.value || 'tcp';
+        if (h && c) ports.push({ host: h, container: c, protocol: p });
+    });
+
+    // Collect volumes
+    const volumes = [];
+    document.querySelectorAll('#dc-volumes .dc-row').forEach(row => {
+        const h = row.querySelector('.dc-vol-host')?.value?.trim();
+        const c = row.querySelector('.dc-vol-container')?.value?.trim();
+        const m = row.querySelector('.dc-vol-mode')?.value || 'rw';
+        if (h && c) volumes.push({ host: h, container: c, mode: m });
+    });
+
+    // Collect env vars
+    const env = [];
+    document.querySelectorAll('#dc-env .dc-row').forEach(row => {
+        const k = row.querySelector('.dc-env-key')?.value?.trim();
+        const v = row.querySelector('.dc-env-value')?.value?.trim();
+        if (k) env.push({ key: k, value: v || '' });
+    });
+
+    const body = {
+        image,
+        name,
+        project: document.getElementById('dc-project')?.value?.trim() || '',
+        restart: document.getElementById('dc-restart')?.value || 'unless-stopped',
+        network: document.getElementById('dc-network')?.value?.trim() || '',
+        memory: document.getElementById('dc-memory')?.value?.trim() || '',
+        cpus: document.getElementById('dc-cpus')?.value?.trim() || '',
+        command: document.getElementById('dc-command')?.value?.trim() || '',
+        ports, volumes, env,
+    };
+
+    showToast('Deploying container...', 'info');
+    closeModal();
+
+    try {
+        const res = await postAPI('/api/docker/containers', body);
+        showToast(res.message || 'Container deployed!');
+        setTimeout(() => loadPageContent('docker'), 2000);
+    } catch (err) {
+        showToast('Deploy failed: ' + (err.message || err), 'error');
+    }
+}
+
+// ===== PULL IMAGE =====
+function showPullImageForm() {
+    showModal('⬇ Pull Docker Image', `
+        <div class="form-group">
+            <label>Image Name</label>
+            <input type="text" id="pull-image" placeholder="nginx:latest, mysql:8, redis:alpine, ubuntu:22.04...">
+            <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+                Enter the image name with optional tag. Examples:<br>
+                • <code style="color:var(--text-secondary)">nginx</code> — latest Nginx<br>
+                • <code style="color:var(--text-secondary)">mysql:8.0</code> — MySQL 8<br>
+                • <code style="color:var(--text-secondary)">postgres:16-alpine</code> — Lightweight PostgreSQL
+            </div>
+        </div>
+        <div id="pull-progress" style="display:none;margin-top:16px">
+            <div class="loading-spinner" style="padding:20px">Pulling image...</div>
+        </div>
+    `, pullImage);
+}
+
+async function pullImage() {
+    const image = document.getElementById('pull-image')?.value?.trim();
+    if (!image) { showToast('Image name is required', 'error'); return; }
+
+    const progress = document.getElementById('pull-progress');
+    if (progress) progress.style.display = 'block';
+
+    showToast('Pulling ' + image + '...', 'info');
+
+    try {
+        const res = await postAPI('/api/docker/images/pull', { image });
+        showToast(res.message || 'Image pulled!');
+        closeModal();
+        // Refresh images tab if open
+        const el = document.getElementById('dockerTab-images');
+        if (el) el.dataset.loaded = '';
+    } catch (err) {
+        showToast('Pull failed: ' + (err.message || err), 'error');
+        if (progress) progress.innerHTML = '<div class="error-state">Failed: ' + (err.message||err) + '</div>';
+    }
+}
+
+function closeModal() {
+    const overlay = document.querySelector('.modal-overlay');
+    if (overlay) overlay.remove();
+}
 
 async function installService(id) { showToast('Installing ' + id + '...', 'info'); const res = await postAPI(`/api/services/${id}/install`); showToast(res.message || 'Installed'); setTimeout(() => location.reload(), 2000); }
 async function uninstallService(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/services/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
