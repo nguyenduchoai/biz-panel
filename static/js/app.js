@@ -1070,9 +1070,48 @@ function selectDir(targetInputId, path) {
     if (browserEl) browserEl.style.display = 'none';
 }
 
-async function installService(id) { showToast('Installing ' + id + '...', 'info'); const res = await postAPI(`/api/services/${id}/install`); showToast(res.message || 'Installed'); setTimeout(() => location.reload(), 2000); }
-async function uninstallService(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/services/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
-async function serviceControl(id, action) { await postAPI(`/api/services/${id}/${action}`); showToast(`Service ${action}`); setTimeout(() => location.reload(), 1000); }
+async function installService(id) {
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Installing...'; }
+    showToast('Installing ' + id + '... This may take a minute.', 'info');
+    try {
+        const res = await postAPI(`/api/services/${id}/install`, {});
+        if (res?.error) { showToast('Error: ' + res.error, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Install'; } return; }
+        showToast(res?.message || id + ' installed!');
+        setTimeout(() => location.reload(), 2000);
+    } catch (err) {
+        showToast('Install failed: ' + (err.message || err), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Install'; }
+    }
+}
+
+async function uninstallService(id) {
+    if (!confirm('Are you sure you want to uninstall ' + id + '?')) return;
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Removing...'; }
+    showToast('Uninstalling ' + id + '...', 'info');
+    try {
+        const res = await postAPI(`/api/services/${id}/uninstall`, {});
+        if (res?.error) { showToast('Error: ' + res.error, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; } return; }
+        showToast(res?.message || id + ' uninstalled!');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        showToast('Uninstall failed: ' + (err.message || err), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; }
+    }
+}
+
+async function serviceControl(id, action) {
+    showToast(`${action}ing ${id}...`, 'info');
+    try {
+        const res = await postAPI(`/api/services/${id}/${action}`, {});
+        if (res?.error) { showToast('Error: ' + res.error, 'error'); return; }
+        showToast(res?.message || `Service ${action} successful`);
+        setTimeout(() => location.reload(), 1000);
+    } catch (err) {
+        showToast(`${action} failed: ` + (err.message || err), 'error');
+    }
+}
 
 async function installSW(id) { showToast('Installing...', 'info'); await postAPI(`/api/software/${id}/install`); showToast('Installed!'); setTimeout(() => location.reload(), 2000); }
 async function uninstallSW(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/software/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
