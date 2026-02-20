@@ -2,6 +2,56 @@
 
 All notable changes to Biz-Panel will be documented in this file.
 
+## [1.3.0] - 2026-01-19 - Production Deployment & Service Management
+
+### Added
+- **Systemd Services for Production**
+  - `biz-panel-backend.service` - Go API server as daemon
+  - `biz-panel-frontend.service` - Vite preview server as daemon
+  - `install-service.sh` - Automated installation script
+  - Auto-restart on failure, auto-start on VPS reboot
+
+- **Service Uninstall Functionality**
+  - Uninstall button for all installed services
+  - Per-service loading state (only clicked button spins)
+  - Vietnamese confirmation dialog with "Gỡ cài đặt" / "Huỷ"
+  - Uses `apt purge` for complete removal with configs
+  - Stops and disables systemd unit before uninstall
+  - Runs `apt autoremove` after uninstall
+
+- **Runtime Status Display**
+  - Runtimes (Node.js, Python, etc.) show "✓ Installed" instead of "○ Stopped"
+  - Hide Start/Stop buttons for services without systemd unit
+  - Green status color for installed runtimes
+
+### Changed
+- **Service Registry Cleanup**
+  - Removed MySQL (MariaDB is recommended alternative)
+  - Updated Node.js versions: 22, 20, 18 (removed 16)
+  - Updated PM2 to 5.4, Docker to 26, Certbot to 2.9
+  - MariaDB description: "MySQL-compatible database (recommended)"
+
+- **Build Command Default**
+  - "Create for Git" tab: Build Command defaults to "npm run build" instead of "None"
+  - Added "pnpm install && pnpm build" option
+
+### Fixed
+- **Modal.confirm Chinese text** → All dialogs now use Vietnamese (okText/cancelText)
+  - Services.tsx: "Cài đặt" / "Huỷ"
+  - Software.tsx: "Gỡ cài đặt" / "Huỷ"  
+  - PHP.tsx: Install/Uninstall with Vietnamese
+  - SSL.tsx: "Xoá" / "Huỷ"
+  - Docker.tsx: "Deploy" / "Huỷ"
+
+- **Database Stats Layout**
+  - Changed from single column to 3-column grid
+  - CSS: `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))`
+
+- **Uninstall All Buttons Spinning**
+  - Added `uninstalling` state to track specific service
+  - Only the clicked service's button shows loading
+
+
 ## [1.2.0] - 2026-01-19 - Internationalization & UX Enhancement
 
 ### Added

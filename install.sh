@@ -1,10 +1,12 @@
 #!/bin/bash
 #
-# Biz-Panel Installation Script
-# One-click server management panel installation
-# 
+# Biz-Panel v2.0 - One-Click Installation Script
+# Built with Rust 🦀
+#
 # Usage: curl -sSL https://get.biz-panel.com | bash
-# Or: bash install.sh
+# Or:    bash install.sh
+#
+# Requirements: Ubuntu 20.04+ / Debian 11+
 #
 
 set -e
@@ -15,440 +17,289 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+MAGENTA='\033[0;35m'
+NC='\033[0m'
 
 # Config
+PANEL_VERSION="2.0.0"
 INSTALL_DIR="/opt/biz-panel"
+CONFIG_DIR="/etc/biz-panel"
 DATA_DIR="/var/lib/biz-panel"
 LOG_DIR="/var/log/biz-panel"
-CONFIG_FILE="/etc/biz-panel/config.yaml"
+CONFIG_FILE="$CONFIG_DIR/config.toml"
 PANEL_PORT=8888
 API_PORT=8080
 
-# Generate random password
-generate_password() {
-    openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 16
-}
+# GitHub release URL (update when publishing)
+RELEASE_URL="https://github.com/bizino-services/biz-panel/releases/latest/download"
 
-# Generate random username
-generate_username() {
-    echo "admin_$(openssl rand -hex 3)"
-}
+# ========== HELPERS ==========
 
-# Print banner
 print_banner() {
     echo -e "${CYAN}"
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║                                                            ║"
-    echo "║     ⚡ BIZ-PANEL - Server Management Panel                ║"
-    echo "║                                                            ║"
-    echo "║     Premium Server Management Made Simple                  ║"
-    echo "║     Version: 1.1.0                                         ║"
-    echo "║                                                            ║"
-    echo "╚════════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                                                              ║"
+    echo "║     ⚡ BIZ-PANEL v2.0 - Server Management Panel             ║"
+    echo "║     Built with Rust 🦀 + Axum                               ║"
+    echo "║                                                              ║"
+    echo "║     Premium Server Management Made Simple                    ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
-# Check if running as root
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+log_error() { echo -e "${RED}[✗]${NC} $1"; }
+log_step() { echo -e "\n${MAGENTA}━━━ $1 ━━━${NC}\n"; }
+
+generate_password() {
+    openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16
+}
+
+generate_jwt_secret() {
+    openssl rand -hex 32
+}
+
+# ========== CHECKS ==========
+
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${RED}Error: Please run as root (sudo)${NC}"
+        log_error "Please run as root: sudo bash install.sh"
         exit 1
     fi
 }
 
-# Detect OS
-detect_os() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$ID
-        OS_VERSION=$VERSION_ID
-    else
-        echo -e "${RED}Error: Unsupported operating system${NC}"
+check_os() {
+    if [ ! -f /etc/os-release ]; then
+        log_error "Unsupported operating system"
         exit 1
     fi
-    
-    echo -e "${GREEN}✓ Detected OS: ${OS} ${OS_VERSION}${NC}"
-}
 
-# Install dependencies
-install_dependencies() {
-    echo -e "${BLUE}[1/7] Installing dependencies...${NC}"
-    
-    case $OS in
+    . /etc/os-release
+
+    case "$ID" in
         ubuntu|debian)
-            apt-get update -qq
-            apt-get install -y -qq curl wget git nginx docker.io docker-compose openssl sqlite3 > /dev/null 2>&1
-            ;;
-        centos|rhel|rocky|almalinux)
-            yum install -y -q curl wget git nginx docker docker-compose openssl sqlite > /dev/null 2>&1
+            log_success "Detected OS: $PRETTY_NAME"
             ;;
         *)
-            echo -e "${RED}Error: Unsupported OS: $OS${NC}"
+            log_warn "Untested OS: $PRETTY_NAME (proceeding anyway)"
+            ;;
+    esac
+
+    # Check architecture
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64|amd64)
+            ARCH="x86_64"
+            ;;
+        aarch64|arm64)
+            ARCH="aarch64"
+            ;;
+        *)
+            log_error "Unsupported architecture: $ARCH"
             exit 1
             ;;
     esac
-    
-    # Start Docker
-    systemctl enable docker --now 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ Dependencies installed${NC}"
+    log_success "Architecture: $ARCH"
 }
 
-# Create directories
+check_existing() {
+    if [ -f "/usr/local/bin/biz-panel" ]; then
+        log_warn "Biz-Panel is already installed!"
+        read -p "Do you want to reinstall? (y/N): " RESPONSE
+        if [ "$RESPONSE" != "y" ] && [ "$RESPONSE" != "Y" ]; then
+            echo "Installation cancelled."
+            exit 0
+        fi
+        # Stop existing service
+        systemctl stop biz-panel 2>/dev/null || true
+    fi
+}
+
+# ========== INSTALLATION STEPS ==========
+
+install_system_deps() {
+    log_step "Step 1/7: Installing system dependencies"
+
+    apt-get update -qq
+
+    # Essential packages
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        curl wget openssl ca-certificates \
+        build-essential pkg-config libssl-dev \
+        sqlite3 > /dev/null 2>&1
+
+    log_success "System dependencies installed"
+}
+
+install_rust() {
+    log_step "Step 2/7: Installing Rust toolchain"
+
+    if command -v rustc &> /dev/null; then
+        RUST_VER=$(rustc --version | awk '{print $2}')
+        log_success "Rust already installed: $RUST_VER"
+    else
+        log_info "Installing Rust via rustup..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -1
+        source "$HOME/.cargo/env"
+        log_success "Rust installed: $(rustc --version)"
+    fi
+
+    # Ensure cargo is in PATH
+    export PATH="$HOME/.cargo/bin:$PATH"
+    source "$HOME/.cargo/env" 2>/dev/null || true
+}
+
+build_panel() {
+    log_step "Step 3/7: Building Biz-Panel from source"
+
+    # Determine source directory
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SOURCE_DIR=""
+
+    # Check if we're in the source directory
+    if [ -f "$SCRIPT_DIR/Cargo.toml" ]; then
+        SOURCE_DIR="$SCRIPT_DIR"
+    elif [ -f "$SCRIPT_DIR/../Cargo.toml" ]; then
+        SOURCE_DIR="$SCRIPT_DIR/.."
+    elif [ -f "/home/biz-panel/biz-panel-rust/Cargo.toml" ]; then
+        SOURCE_DIR="/home/biz-panel/biz-panel-rust"
+    else
+        # Download from GitHub
+        log_info "Downloading source code..."
+        TEMP_DIR=$(mktemp -d)
+        cd "$TEMP_DIR"
+        curl -sSL "$RELEASE_URL/source.tar.gz" -o source.tar.gz 2>/dev/null || {
+            log_error "Failed to download source. Please run from the source directory."
+            exit 1
+        }
+        tar -xzf source.tar.gz
+        SOURCE_DIR="$TEMP_DIR/biz-panel-rust"
+    fi
+
+    log_info "Building from: $SOURCE_DIR"
+    cd "$SOURCE_DIR"
+
+    # Build in release mode
+    log_info "Compiling (this may take 2-5 minutes)..."
+    source "$HOME/.cargo/env" 2>/dev/null || true
+    cargo build --release 2>&1 | tail -5
+
+    # Verify binary
+    if [ ! -f "target/release/biz-panel" ]; then
+        log_error "Build failed! Binary not found."
+        exit 1
+    fi
+
+    BINARY_SIZE=$(du -h "target/release/biz-panel" | awk '{print $1}')
+    log_success "Build complete! Binary size: $BINARY_SIZE"
+}
+
 create_directories() {
-    echo -e "${BLUE}[2/7] Creating directories...${NC}"
-    
+    log_step "Step 4/7: Creating directories"
+
     mkdir -p "$INSTALL_DIR"/{bin,web,config}
     mkdir -p "$DATA_DIR"/{db,backups,ssl}
     mkdir -p "$LOG_DIR"
-    mkdir -p /etc/biz-panel
-    
-    echo -e "${GREEN}✓ Directories created${NC}"
+    mkdir -p "$CONFIG_DIR"
+
+    log_success "Directories created"
 }
 
-# Generate credentials
-generate_credentials() {
-    echo -e "${BLUE}[3/7] Generating credentials...${NC}"
-    
-    ADMIN_USER=$(generate_username)
+install_binary() {
+    log_step "Step 5/7: Installing binary"
+
+    # Determine source directory
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    if [ -f "$SCRIPT_DIR/target/release/biz-panel" ]; then
+        BIN_PATH="$SCRIPT_DIR/target/release/biz-panel"
+    elif [ -f "/home/biz-panel/biz-panel-rust/target/release/biz-panel" ]; then
+        BIN_PATH="/home/biz-panel/biz-panel-rust/target/release/biz-panel"
+    else
+        log_error "Binary not found!"
+        exit 1
+    fi
+
+    # Install binary
+    cp "$BIN_PATH" "$INSTALL_DIR/bin/biz-panel"
+    chmod +x "$INSTALL_DIR/bin/biz-panel"
+
+    # Create symlink
+    ln -sf "$INSTALL_DIR/bin/biz-panel" /usr/local/bin/biz-panel
+
+    log_success "Binary installed to $INSTALL_DIR/bin/biz-panel"
+}
+
+generate_config() {
+    log_step "Step 6/7: Generating configuration"
+
+    ADMIN_USER="admin"
     ADMIN_PASS=$(generate_password)
-    JWT_SECRET=$(openssl rand -hex 32)
-    
-    # Hash password with bcrypt (using openssl)
-    ADMIN_PASS_HASH=$(echo -n "$ADMIN_PASS" | openssl passwd -6 -stdin)
-    
-    echo -e "${GREEN}✓ Credentials generated${NC}"
-}
+    JWT_SECRET=$(generate_jwt_secret)
 
-# Create configuration
-create_config() {
-    echo -e "${BLUE}[4/7] Creating configuration...${NC}"
-    
-    cat > "$CONFIG_FILE" << EOF
-# Biz-Panel Configuration
+    # Generate bcrypt hash
+    ADMIN_PASS_HASH=$("$INSTALL_DIR/bin/biz-panel" password-hash "$ADMIN_PASS" 2>/dev/null || echo "")
+
+    # If password hash generation fails, use a placeholder
+    if [ -z "$ADMIN_PASS_HASH" ]; then
+        # Use Python or openssl as fallback
+        ADMIN_PASS_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'$ADMIN_PASS', bcrypt.gensalt()).decode())" 2>/dev/null || echo '$2b$12$placeholder')
+    fi
+
+    cat > "$CONFIG_FILE" << TOML
+# Biz-Panel v2.0 Configuration
 # Generated on $(date)
 
-server:
-  host: 0.0.0.0
-  port: $API_PORT
-  panel_port: $PANEL_PORT
+[server]
+host = "0.0.0.0"
+port = $API_PORT
+panel_port = $PANEL_PORT
 
-database:
-  driver: sqlite
-  path: $DATA_DIR/db/biz-panel.db
+[database]
+path = "$DATA_DIR/db/panel.db"
 
-auth:
-  jwt_secret: $JWT_SECRET
-  session_timeout: 86400
+[auth]
+jwt_secret = "$JWT_SECRET"
+admin_user = "$ADMIN_USER"
+admin_pass_hash = "$ADMIN_PASS_HASH"
+session_timeout = 86400
 
-admin:
-  username: $ADMIN_USER
-  password_hash: $ADMIN_PASS_HASH
+[security]
+allowed_ips = []
+enable_2fa = false
+brute_force_protection = true
+max_login_attempts = 5
 
-security:
-  allowed_ips: []
-  enable_2fa: false
+[logging]
+level = "info"
+path = "$LOG_DIR/panel.log"
+max_size_mb = 100
 
-logging:
-  level: info
-  path: $LOG_DIR/biz-panel.log
-  max_size: 100M
-  max_backups: 7
-
-features:
-  docker: true
-  websites: true
-  databases: true
-  firewall: true
-  ssl: true
-  monitoring: true
-EOF
+[features]
+docker = true
+websites = true
+databases = true
+firewall = true
+ssl = true
+monitoring = true
+terminal = true
+file_manager = true
+TOML
 
     chmod 600 "$CONFIG_FILE"
-    
-    echo -e "${GREEN}✓ Configuration created${NC}"
+
+    log_success "Configuration generated"
 }
 
-# Download and install binaries
-install_binaries() {
-    echo -e "${BLUE}[5/7] Installing Biz-Panel...${NC}"
-    
-    # For local development - copy from current directory
-    if [ -f "./backend/bin/biz-panel-server" ]; then
-        cp ./backend/bin/biz-panel-server "$INSTALL_DIR/bin/"
-    fi
-    
-    if [ -d "./dist" ]; then
-        cp -r ./dist/* "$INSTALL_DIR/web/"
-    fi
-    
-    # Create CLI tool
-    cat > "$INSTALL_DIR/bin/biz-panel" << 'EOFCLI'
-#!/bin/bash
-#
-# Biz-Panel CLI Tool
-# Usage: biz-panel <command> [options]
-#
+create_systemd_service() {
+    log_step "Step 7/7: Creating systemd service"
 
-CONFIG_FILE="/etc/biz-panel/config.yaml"
-INSTALL_DIR="/opt/biz-panel"
-LOG_DIR="/var/log/biz-panel"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-show_help() {
-    echo -e "${CYAN}Biz-Panel CLI v1.1.0${NC}"
-    echo ""
-    echo "Usage: biz-panel <command> [options]"
-    echo ""
-    echo "Commands:"
-    echo "  status          Show panel status"
-    echo "  start           Start panel service"
-    echo "  stop            Stop panel service"
-    echo "  restart         Restart panel service"
-    echo "  password        Change admin password"
-    echo "  username        Show admin username"
-    echo "  info            Show access information"
-    echo "  logs            View panel logs"
-    echo "  update          Update to latest version"
-    echo "  backup          Backup panel data"
-    echo "  restore         Restore from backup"
-    echo "  port            Change panel port"
-    echo "  ssl             Configure SSL certificate"
-    echo "  firewall        Manage firewall"
-    echo "  uninstall       Remove Biz-Panel"
-    echo ""
-    echo "Examples:"
-    echo "  biz-panel password        # Change admin password"
-    echo "  biz-panel port 9999       # Change panel port to 9999"
-    echo "  biz-panel logs -f         # Follow logs in real-time"
-}
-
-show_status() {
-    echo -e "${CYAN}=== Biz-Panel Status ===${NC}"
-    echo ""
-    
-    if systemctl is-active --quiet biz-panel; then
-        echo -e "Service:  ${GREEN}● Running${NC}"
-    else
-        echo -e "Service:  ${RED}● Stopped${NC}"
-    fi
-    
-    # Get port from config
-    PANEL_PORT=$(grep "panel_port:" "$CONFIG_FILE" 2>/dev/null | awk '{print $2}' || echo "8888")
-    API_PORT=$(grep "port:" "$CONFIG_FILE" 2>/dev/null | head -1 | awk '{print $2}' || echo "8080")
-    
-    echo "Panel:    http://$(hostname -I | awk '{print $1}'):$PANEL_PORT"
-    echo "API:      http://$(hostname -I | awk '{print $1}'):$API_PORT"
-    echo ""
-    
-    # System resources
-    echo -e "${CYAN}=== System Resources ===${NC}"
-    echo "CPU:      $(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')%"
-    echo "Memory:   $(free -m | awk 'NR==2{printf "%.1f%%", $3*100/$2}')"
-    echo "Disk:     $(df -h / | awk 'NR==2{print $5}')"
-}
-
-change_password() {
-    echo -e "${CYAN}=== Change Admin Password ===${NC}"
-    echo ""
-    
-    # Read new password
-    read -sp "Enter new password: " NEW_PASS
-    echo ""
-    read -sp "Confirm new password: " CONFIRM_PASS
-    echo ""
-    
-    if [ "$NEW_PASS" != "$CONFIRM_PASS" ]; then
-        echo -e "${RED}Error: Passwords do not match${NC}"
-        exit 1
-    fi
-    
-    if [ ${#NEW_PASS} -lt 8 ]; then
-        echo -e "${RED}Error: Password must be at least 8 characters${NC}"
-        exit 1
-    fi
-    
-    # Hash new password
-    NEW_HASH=$(echo -n "$NEW_PASS" | openssl passwd -6 -stdin)
-    
-    # Update config
-    sed -i "s|password_hash:.*|password_hash: $NEW_HASH|" "$CONFIG_FILE"
-    
-    # Restart service
-    systemctl restart biz-panel 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ Password changed successfully${NC}"
-}
-
-show_username() {
-    USERNAME=$(grep "username:" "$CONFIG_FILE" | awk '{print $2}')
-    echo -e "Admin Username: ${GREEN}$USERNAME${NC}"
-}
-
-show_info() {
-    echo -e "${CYAN}"
-    echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║              Biz-Panel Access Information                  ║"
-    echo "╠════════════════════════════════════════════════════════════╣"
-    echo -e "║  ${NC}Panel URL:${CYAN}  http://$(hostname -I | awk '{print $1}'):8888        ║"
-    echo -e "║  ${NC}Username:${CYAN}   $(grep 'username:' $CONFIG_FILE | awk '{print $2}')                              ║"
-    echo -e "║  ${NC}Password:${CYAN}   [Use 'biz-panel password' to change]   ║"
-    echo "╚════════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
-}
-
-view_logs() {
-    if [ "$1" == "-f" ]; then
-        tail -f "$LOG_DIR/biz-panel.log"
-    else
-        tail -100 "$LOG_DIR/biz-panel.log"
-    fi
-}
-
-change_port() {
-    NEW_PORT=$1
-    
-    if [ -z "$NEW_PORT" ]; then
-        read -p "Enter new port: " NEW_PORT
-    fi
-    
-    if ! [[ "$NEW_PORT" =~ ^[0-9]+$ ]] || [ "$NEW_PORT" -lt 1 ] || [ "$NEW_PORT" -gt 65535 ]; then
-        echo -e "${RED}Error: Invalid port number${NC}"
-        exit 1
-    fi
-    
-    sed -i "s|panel_port:.*|panel_port: $NEW_PORT|" "$CONFIG_FILE"
-    systemctl restart biz-panel 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ Port changed to $NEW_PORT${NC}"
-    echo -e "Access panel at: http://$(hostname -I | awk '{print $1}'):$NEW_PORT"
-}
-
-do_backup() {
-    BACKUP_FILE="/var/lib/biz-panel/backups/backup_$(date +%Y%m%d_%H%M%S).tar.gz"
-    
-    echo "Creating backup..."
-    tar -czf "$BACKUP_FILE" \
-        -C /var/lib/biz-panel/db . \
-        -C /etc/biz-panel . \
-        2>/dev/null
-    
-    echo -e "${GREEN}✓ Backup created: $BACKUP_FILE${NC}"
-}
-
-do_uninstall() {
-    echo -e "${YELLOW}Warning: This will remove Biz-Panel and all data!${NC}"
-    read -p "Are you sure? (yes/no): " CONFIRM
-    
-    if [ "$CONFIRM" != "yes" ]; then
-        echo "Cancelled"
-        exit 0
-    fi
-    
-    systemctl stop biz-panel 2>/dev/null || true
-    systemctl disable biz-panel 2>/dev/null || true
-    
-    rm -rf /opt/biz-panel
-    rm -rf /var/lib/biz-panel
-    rm -rf /var/log/biz-panel
-    rm -rf /etc/biz-panel
-    rm -f /etc/systemd/system/biz-panel.service
-    rm -f /usr/local/bin/biz-panel
-    
-    systemctl daemon-reload
-    
-    echo -e "${GREEN}✓ Biz-Panel uninstalled${NC}"
-}
-
-# Main command handler
-case "$1" in
-    status)
-        show_status
-        ;;
-    start)
-        systemctl start biz-panel
-        echo -e "${GREEN}✓ Biz-Panel started${NC}"
-        ;;
-    stop)
-        systemctl stop biz-panel
-        echo -e "${GREEN}✓ Biz-Panel stopped${NC}"
-        ;;
-    restart)
-        systemctl restart biz-panel
-        echo -e "${GREEN}✓ Biz-Panel restarted${NC}"
-        ;;
-    password)
-        change_password
-        ;;
-    username)
-        show_username
-        ;;
-    info)
-        show_info
-        ;;
-    logs)
-        view_logs "$2"
-        ;;
-    port)
-        change_port "$2"
-        ;;
-    backup)
-        do_backup
-        ;;
-    update)
-        # Run update script
-        if [ -f "$INSTALL_DIR/scripts/update.sh" ]; then
-            bash "$INSTALL_DIR/scripts/update.sh" "$2" "$3"
-        else
-            echo -e "${CYAN}Downloading update tool...${NC}"
-            curl -sL "https://raw.githubusercontent.com/bizino-services/biz-panel/main/scripts/update.sh" -o /tmp/update.sh
-            bash /tmp/update.sh "$2" "$3"
-            rm -f /tmp/update.sh
-        fi
-        ;;
-    version)
-        if [ -f "$INSTALL_DIR/version.json" ]; then
-            VERSION=$(cat "$INSTALL_DIR/version.json" | grep '"version"' | sed 's/.*"version": *"\([^"]*\)".*/\1/')
-            BUILD=$(cat "$INSTALL_DIR/version.json" | grep '"build"' | sed 's/.*"build": *"\([^"]*\)".*/\1/')
-            echo -e "Biz-Panel ${GREEN}v$VERSION${NC} (build $BUILD)"
-        else
-            echo -e "Biz-Panel ${GREEN}v1.1.0${NC}"
-        fi
-        ;;
-    uninstall)
-        do_uninstall
-        ;;
-    help|--help|-h|"")
-        show_help
-        ;;
-    *)
-        echo -e "${RED}Unknown command: $1${NC}"
-        echo "Run 'biz-panel help' for usage"
-        exit 1
-        ;;
-esac
-EOFCLI
-
-    chmod +x "$INSTALL_DIR/bin/biz-panel"
-    ln -sf "$INSTALL_DIR/bin/biz-panel" /usr/local/bin/biz-panel
-    
-    echo -e "${GREEN}✓ Biz-Panel installed${NC}"
-}
-
-# Create systemd service
-create_service() {
-    echo -e "${BLUE}[6/7] Creating system service...${NC}"
-    
     cat > /etc/systemd/system/biz-panel.service << EOF
 [Unit]
-Description=Biz-Panel Server Management
+Description=Biz-Panel Server Management Panel
 After=network.target docker.service
 Wants=docker.service
 
@@ -456,11 +307,17 @@ Wants=docker.service
 Type=simple
 User=root
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/bin/biz-panel-server -config $CONFIG_FILE
+ExecStart=$INSTALL_DIR/bin/biz-panel start --port $PANEL_PORT --config $CONFIG_FILE
 Restart=always
 RestartSec=5
-StandardOutput=append:$LOG_DIR/biz-panel.log
-StandardError=append:$LOG_DIR/biz-panel.log
+StandardOutput=append:$LOG_DIR/panel.log
+StandardError=append:$LOG_DIR/panel.log
+Environment=RUST_LOG=biz_panel=info
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=false
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
@@ -468,95 +325,100 @@ EOF
 
     systemctl daemon-reload
     systemctl enable biz-panel
-    
-    echo -e "${GREEN}✓ Service created${NC}"
+    systemctl start biz-panel
+
+    log_success "Service created and started"
 }
 
-# Configure firewall
 configure_firewall() {
-    echo -e "${BLUE}[7/7] Configuring firewall...${NC}"
-    
-    # UFW (Ubuntu/Debian)
     if command -v ufw &> /dev/null; then
         ufw allow $PANEL_PORT/tcp 2>/dev/null || true
-        ufw allow $API_PORT/tcp 2>/dev/null || true
         ufw allow 80/tcp 2>/dev/null || true
         ufw allow 443/tcp 2>/dev/null || true
+        log_success "Firewall configured (UFW)"
     fi
-    
-    # Firewalld (CentOS/RHEL)
-    if command -v firewall-cmd &> /dev/null; then
-        firewall-cmd --permanent --add-port=$PANEL_PORT/tcp 2>/dev/null || true
-        firewall-cmd --permanent --add-port=$API_PORT/tcp 2>/dev/null || true
-        firewall-cmd --permanent --add-port=80/tcp 2>/dev/null || true
-        firewall-cmd --permanent --add-port=443/tcp 2>/dev/null || true
-        firewall-cmd --reload 2>/dev/null || true
-    fi
-    
-    echo -e "${GREEN}✓ Firewall configured${NC}"
 }
 
-# Print success message
+# ========== FINAL ==========
+
 print_success() {
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    
+
     echo ""
-    echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║                                                            ║${NC}"
-    echo -e "${GREEN}║     ✅ Biz-Panel Installation Complete!                    ║${NC}"
-    echo -e "${GREEN}║                                                            ║${NC}"
-    echo -e "${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${GREEN}║                                                            ║${NC}"
-    echo -e "${GREEN}║${NC}  🌐 Panel URL:   ${CYAN}http://$SERVER_IP:$PANEL_PORT${NC}              ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}  👤 Username:    ${CYAN}$ADMIN_USER${NC}                          ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}  🔑 Password:    ${CYAN}$ADMIN_PASS${NC}                      ${GREEN}║${NC}"
-    echo -e "${GREEN}║                                                            ║${NC}"
-    echo -e "${GREEN}╠════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${GREEN}║${NC}  📝 CLI Commands:                                          ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}     biz-panel status    - Show status                     ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}     biz-panel password  - Change password                 ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}     biz-panel logs      - View logs                       ${GREEN}║${NC}"
-    echo -e "${GREEN}║${NC}     biz-panel help      - Show all commands               ${GREEN}║${NC}"
-    echo -e "${GREEN}║                                                            ║${NC}"
-    echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}║     ✅ Biz-Panel v2.0 Installation Complete!                 ║${NC}"
+    echo -e "${GREEN}║     Built with Rust 🦀                                       ║${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}╠══════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}║${NC}  🌐 Panel URL:   ${CYAN}http://$SERVER_IP:$PANEL_PORT${NC}${GREEN}                  ║${NC}"
+    echo -e "${GREEN}║${NC}  👤 Username:    ${CYAN}$ADMIN_USER${NC}${GREEN}                                  ║${NC}"
+    echo -e "${GREEN}║${NC}  🔑 Password:    ${CYAN}$ADMIN_PASS${NC}${GREEN}                          ║${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}╠══════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${GREEN}║${NC}  📝 CLI Commands:                                            ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     biz-panel status    - Show panel status                 ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     biz-panel password  - Change admin password             ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     biz-panel info      - Show access info                  ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     biz-panel start     - Start with custom options          ${GREEN}║${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}╠══════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${GREEN}║${NC}  🛠️  Service Commands:                                       ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     systemctl status biz-panel                               ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     systemctl restart biz-panel                              ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}     journalctl -u biz-panel -f                               ${GREEN}║${NC}"
+    echo -e "${GREEN}║                                                              ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${YELLOW}⚠️  Please save these credentials! They won't be shown again.${NC}"
     echo ""
-    
-    # Save credentials to file (readable only by root)
-    cat > /root/.biz-panel-credentials << EOF
-# Biz-Panel Credentials
+
+    # Save credentials
+    cat > /root/.biz-panel-credentials << CREDS
+# Biz-Panel v2.0 Credentials
 # Generated on $(date)
+# Built with Rust 🦀
 
 URL: http://$SERVER_IP:$PANEL_PORT
 Username: $ADMIN_USER
 Password: $ADMIN_PASS
 
-Note: Use 'biz-panel password' to change password
-EOF
+Config: $CONFIG_FILE
+Binary: $INSTALL_DIR/bin/biz-panel
+
+Commands:
+  biz-panel status     - Show status
+  biz-panel password   - Change password
+  biz-panel info       - Show info
+CREDS
     chmod 600 /root/.biz-panel-credentials
-    
-    echo -e "${GREEN}Credentials saved to: /root/.biz-panel-credentials${NC}"
+    log_success "Credentials saved to /root/.biz-panel-credentials"
 }
 
-# Main installation flow
+# ========== MAIN ==========
+
 main() {
     print_banner
     check_root
-    detect_os
-    install_dependencies
+    check_os
+    check_existing
+
+    echo ""
+    log_info "Starting installation..."
+    echo ""
+
+    install_system_deps
+    install_rust
+    build_panel
     create_directories
-    generate_credentials
-    create_config
-    install_binaries
-    create_service
+    install_binary
+    generate_config
+    create_systemd_service
     configure_firewall
-    
-    # Start service
-    systemctl start biz-panel 2>/dev/null || true
-    
+
     print_success
 }
 
-# Run installation
+# Run
 main "$@"

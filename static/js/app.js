@@ -1,0 +1,520 @@
+// Biz-Panel v2.0 - Frontend JavaScript
+// Handles API calls, page rendering, and interactivity
+
+const API_TOKEN = () => localStorage.getItem('biz_token') || '';
+
+// ========== API HELPERS ==========
+
+async function fetchAPI(url, options = {}) {
+    const defaults = {
+        headers: {
+            'Authorization': `Bearer ${API_TOKEN()}`,
+            'Content-Type': 'application/json',
+        },
+    };
+    const res = await fetch(url, { ...defaults, ...options });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    return res.json();
+}
+
+async function postAPI(url, data) {
+    return fetchAPI(url, { method: 'POST', body: JSON.stringify(data) });
+}
+
+async function putAPI(url, data) {
+    return fetchAPI(url, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+async function deleteAPI(url) {
+    return fetchAPI(url, { method: 'DELETE' });
+}
+
+// ========== UTILITY FUNCTIONS ==========
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function formatUptime(seconds) {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
+function showToast(message, type = 'success') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+function showModal(title, content, onSubmit) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div>${content}</div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+            <button class="btn btn-primary" id="modalSubmit">Submit</button>
+        </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('modalSubmit').addEventListener('click', () => { onSubmit(); overlay.remove(); });
+}
+
+// ========== PAGE RENDERERS ==========
+
+function renderTable(title, icon, data, columns, actions = []) {
+    const rows = Array.isArray(data) ? data : [];
+    const actionBtns = actions.map(a => `<button class="btn btn-primary" onclick="${a.action}()">${a.label}</button>`).join('');
+
+    return `
+        <div class="page-header">
+            <h2>${icon} ${title}</h2>
+            <div class="header-actions">${actionBtns}</div>
+        </div>
+        ${rows.length === 0 ? '<div class="empty-state">No items found. Create one to get started.</div>' : `
+        <table class="data-table">
+            <thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}<th>Actions</th></tr></thead>
+            <tbody>
+                ${rows.map(row => `<tr>
+                    ${columns.map(c => {
+                        let val = row[c] ?? '';
+                        if (c === 'status' || c === 'state') val = `<span class="status-badge status-${val}">${val}</span>`;
+                        if (c === 'enabled') val = val ? '<span class="tag tag-green">Active</span>' : '<span class="tag tag-red">Disabled</span>';
+                        return `<td>${val}</td>`;
+                    }).join('')}
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteItem('${title.toLowerCase().replace(/\s+/g, '')}', '${row.id}')">Delete</button></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`}`;
+}
+
+function renderDockerPage(containers) {
+    const list = Array.isArray(containers) ? containers : [];
+    return `
+        <div class="page-header"><h2>🐳 Docker</h2></div>
+        <div class="service-grid">
+            ${list.map(c => `
+                <div class="service-card">
+                    <div class="service-card-header">
+                        <span class="service-card-icon">📦</span>
+                        <div class="service-card-info">
+                            <div class="service-card-name">${c.name}</div>
+                            <div class="service-card-desc">${c.image} • <span class="status-badge status-${c.state}">${c.state}</span></div>
+                        </div>
+                    </div>
+                    <div class="service-card-actions">
+                        ${c.state !== 'running' ? `<button class="btn btn-success btn-sm" onclick="dockerAction('${c.id}','start')">Start</button>` : ''}
+                        ${c.state === 'running' ? `<button class="btn btn-sm" onclick="dockerAction('${c.id}','stop')" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">Stop</button>` : ''}
+                        <button class="btn btn-sm" onclick="dockerAction('${c.id}','restart')" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">Restart</button>
+                        <button class="btn btn-danger btn-sm" onclick="dockerAction('${c.id}','remove')">Remove</button>
+                    </div>
+                </div>
+            `).join('') || '<div class="empty-state">No containers found. Install Docker and deploy some containers.</div>'}
+        </div>`;
+}
+
+function renderServicesPage(services) {
+    const list = Array.isArray(services) ? services : [];
+    const types = [...new Set(list.map(s => s.type))];
+    return `
+        <div class="page-header"><h2>⚙️ Services</h2></div>
+        ${types.map(type => `
+            <h3 style="margin: 20px 0 12px; color: var(--text-secondary); text-transform: capitalize;">${type}s</h3>
+            <div class="service-grid">
+                ${list.filter(s => s.type === type).map(s => `
+                    <div class="service-card">
+                        <div class="service-card-header">
+                            <span class="service-card-icon">${s.icon}</span>
+                            <div class="service-card-info">
+                                <div class="service-card-name">${s.name}</div>
+                                <div class="service-card-desc">${s.description}</div>
+                            </div>
+                            ${s.installed ? '<span class="tag tag-green">Installed</span>' : '<span class="tag tag-yellow">Not installed</span>'}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin: 8px 0;">
+                            ${s.installedVersion ? `Version: ${s.installedVersion}` : ''}
+                            ${s.status ? ` • Status: <span class="status-badge status-${s.status.state}">${s.status.state}</span>` : ''}
+                        </div>
+                        <div class="service-card-actions">
+                            ${!s.installed ? `<button class="btn btn-primary btn-sm" onclick="installService('${s.id}')">Install</button>` : ''}
+                            ${s.installed && s.systemdUnit ? `
+                                <button class="btn btn-success btn-sm" onclick="serviceControl('${s.id}','start')">Start</button>
+                                <button class="btn btn-sm" onclick="serviceControl('${s.id}','stop')" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">Stop</button>
+                                <button class="btn btn-sm" onclick="serviceControl('${s.id}','restart')" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">Restart</button>
+                            ` : ''}
+                            ${s.installed ? `<button class="btn btn-danger btn-sm" onclick="uninstallService('${s.id}')">Uninstall</button>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('')}`;
+}
+
+function renderFileManager() {
+    return `
+        <div class="page-header"><h2>📁 File Manager</h2></div>
+        <div class="file-browser">
+            <div class="file-breadcrumb" id="fileBreadcrumb">/</div>
+            <ul class="file-list" id="fileList"><li class="loading-spinner">Loading...</li></ul>
+        </div>`;
+}
+
+function renderTerminal() {
+    return `
+        <div class="page-header"><h2>💻 Terminal</h2></div>
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <span class="terminal-title">bash — biz-panel</span>
+            </div>
+            <div id="terminal-el"></div>
+        </div>`;
+}
+
+function renderLogsPage(sources) {
+    const list = Array.isArray(sources) ? sources : [];
+    return `
+        <div class="page-header"><h2>📋 Logs</h2></div>
+        <div class="service-grid">
+            ${list.map(s => `
+                <div class="service-card" onclick="viewLog('${s.name}')" style="cursor:pointer">
+                    <div class="service-card-header">
+                        <span class="service-card-icon">📄</span>
+                        <div class="service-card-info">
+                            <div class="service-card-name">${s.name}</div>
+                            <div class="service-card-desc">${s.path} • ${formatBytes(s.size)}</div>
+                        </div>
+                        ${s.exists ? '<span class="tag tag-green">Available</span>' : '<span class="tag tag-red">Missing</span>'}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div id="logViewer" style="margin-top:20px;display:none">
+            <div class="chart-card"><h3 id="logTitle">Log Viewer</h3>
+                <pre id="logContent" style="max-height:500px;overflow:auto;font-size:12px;color:var(--text-secondary);background:var(--bg-input);padding:16px;border-radius:8px;font-family:monospace;white-space:pre-wrap;"></pre>
+            </div>
+        </div>`;
+}
+
+function renderSoftwarePage(software) {
+    const list = Array.isArray(software) ? software : [];
+    return `
+        <div class="page-header"><h2>📦 Software</h2></div>
+        <div class="service-grid">
+            ${list.map(s => `
+                <div class="service-card">
+                    <div class="service-card-header">
+                        <span class="service-card-icon">${s.icon}</span>
+                        <div class="service-card-info">
+                            <div class="service-card-name">${s.name}</div>
+                            <div class="service-card-desc">${s.category}${s.version ? ' • v' + s.version : ''}</div>
+                        </div>
+                        ${s.installed ? '<span class="tag tag-green">Installed</span>' : '<span class="tag tag-yellow">Not installed</span>'}
+                    </div>
+                    <div class="service-card-actions">
+                        ${!s.installed ? `<button class="btn btn-primary btn-sm" onclick="installSW('${s.id}')">Install</button>` : `<button class="btn btn-danger btn-sm" onclick="uninstallSW('${s.id}')">Uninstall</button>`}
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+function renderPHPPage(versions) {
+    const list = Array.isArray(versions) ? versions : [];
+    return `
+        <div class="page-header"><h2>🐘 PHP Management</h2></div>
+        <div class="service-grid">
+            ${list.map(v => `
+                <div class="service-card">
+                    <div class="service-card-header">
+                        <span class="service-card-icon">🐘</span>
+                        <div class="service-card-info">
+                            <div class="service-card-name">PHP ${v.version}</div>
+                            <div class="service-card-desc">${v.isDefault ? '⭐ Default' : ''} ${v.status || ''}</div>
+                        </div>
+                        ${v.installed ? '<span class="tag tag-green">Installed</span>' : '<span class="tag tag-yellow">Not installed</span>'}
+                    </div>
+                    <div class="service-card-actions">
+                        ${!v.installed ? `<button class="btn btn-primary btn-sm" onclick="installPHP('${v.version}')">Install</button>` :
+                            `<button class="btn btn-success btn-sm" onclick="phpAction('${v.version}','start')">Start</button>
+                             <button class="btn btn-sm" onclick="phpAction('${v.version}','restart')" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">Restart</button>
+                             <button class="btn btn-danger btn-sm" onclick="uninstallPHP('${v.version}')">Uninstall</button>`}
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+function renderAppStore(templates) {
+    const list = Array.isArray(templates) ? templates : [];
+    return `
+        <div class="page-header"><h2>🛒 App Store</h2></div>
+        <div class="service-grid">
+            ${list.map(t => `
+                <div class="service-card">
+                    <div class="service-card-header">
+                        <span class="service-card-icon">${t.icon}</span>
+                        <div class="service-card-info">
+                            <div class="service-card-name">${t.name}</div>
+                            <div class="service-card-desc">${t.description} • v${t.version}</div>
+                        </div>
+                        <span class="tag tag-blue">${t.category}</span>
+                    </div>
+                    <div class="service-card-actions">
+                        <button class="btn btn-primary btn-sm" onclick="deployApp('${t.id}')">Deploy</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+function renderSettingsPage(settings) {
+    return `
+        <div class="page-header"><h2>⚙️ Settings</h2></div>
+        <div class="chart-card">
+            <h3>General Settings</h3>
+            <div class="form-group"><label>Panel Title</label><input type="text" id="settTitle" value="${settings.general?.panelTitle || 'Biz-Panel'}"></div>
+            <div class="form-group"><label>Timezone</label><input type="text" id="settTimezone" value="${settings.general?.timezone || 'UTC'}"></div>
+            <div class="form-group"><label>Language</label>
+                <select id="settLanguage"><option value="en" ${settings.general?.language==='en'?'selected':''}>English</option><option value="vi" ${settings.general?.language==='vi'?'selected':''}>Tiếng Việt</option></select>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+        <div class="chart-card" style="margin-top:20px">
+            <h3>Change Password</h3>
+            <div class="form-group"><label>New Password</label><input type="password" id="newPassword" placeholder="Min 8 characters"></div>
+            <div class="form-group"><label>Confirm Password</label><input type="password" id="confirmPassword"></div>
+            <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+        </div>`;
+}
+
+// ========== ACTION HANDLERS ==========
+
+async function deleteItem(type, id) {
+    if (!confirm('Are you sure?')) return;
+    const urlMap = { websites: '/api/websites/', databases: '/api/databases/', cronjobs: '/api/crons/', firewallrules: '/api/firewall/rules/' };
+    const url = urlMap[type] || `/api/${type}/`;
+    await deleteAPI(url + id);
+    showToast('Deleted successfully');
+    location.reload();
+}
+
+async function dockerAction(id, action) {
+    if (action === 'remove' && !confirm('Remove container?')) return;
+    const url = action === 'remove' ? `/api/docker/containers/${id}` : `/api/docker/containers/${id}/${action}`;
+    const method = action === 'remove' ? 'DELETE' : 'POST';
+    await fetchAPI(url, { method });
+    showToast(`Container ${action} successful`);
+    setTimeout(() => location.reload(), 1000);
+}
+
+async function installService(id) { showToast('Installing ' + id + '...', 'info'); const res = await postAPI(`/api/services/${id}/install`); showToast(res.message || 'Installed'); setTimeout(() => location.reload(), 2000); }
+async function uninstallService(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/services/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+async function serviceControl(id, action) { await postAPI(`/api/services/${id}/${action}`); showToast(`Service ${action}`); setTimeout(() => location.reload(), 1000); }
+
+async function installSW(id) { showToast('Installing...', 'info'); await postAPI(`/api/software/${id}/install`); showToast('Installed!'); setTimeout(() => location.reload(), 2000); }
+async function uninstallSW(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/software/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+
+async function installPHP(v) { showToast('Installing PHP ' + v + '...', 'info'); await postAPI(`/api/php/versions/${v}/install`); showToast('Installed!'); setTimeout(() => location.reload(), 2000); }
+async function uninstallPHP(v) { if (!confirm('Uninstall?')) return; await postAPI(`/api/php/versions/${v}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+async function phpAction(v, action) { await postAPI(`/api/php/versions/${v}/${action}`); showToast(`PHP-FPM ${action}`); setTimeout(() => location.reload(), 1000); }
+
+async function deployApp(id) { showToast('Deploying...', 'info'); await postAPI(`/api/templates/${id}/deploy`, {}); showToast('Deployed!'); }
+
+async function saveSettings() { await putAPI('/api/settings', { general: { panelTitle: document.getElementById('settTitle').value, timezone: document.getElementById('settTimezone').value, language: document.getElementById('settLanguage').value }}); showToast('Settings saved'); }
+
+async function changePassword() {
+    const p = document.getElementById('newPassword').value;
+    const c = document.getElementById('confirmPassword').value;
+    if (p !== c) { showToast('Passwords do not match', 'error'); return; }
+    if (p.length < 8) { showToast('Password must be 8+ characters', 'error'); return; }
+    await postAPI('/api/auth/change-password', { newPassword: p });
+    showToast('Password changed');
+}
+
+// ========== FILE MANAGER ==========
+
+let currentPath = '/';
+
+async function loadFiles(path) {
+    currentPath = path;
+    const data = await fetchAPI(`/api/files?path=${encodeURIComponent(path)}`);
+    const list = Array.isArray(data) ? data : [];
+    const breadcrumb = document.getElementById('fileBreadcrumb');
+    const fileList = document.getElementById('fileList');
+    if (!fileList) return;
+
+    // Build breadcrumb
+    const parts = path.split('/').filter(Boolean);
+    let crumbs = '<a href="#" onclick="loadFiles(\'/\');return false">/</a>';
+    let buildPath = '';
+    parts.forEach(p => { buildPath += '/' + p; crumbs += ` <a href="#" onclick="loadFiles('${buildPath}');return false">${p}</a> /`; });
+    if (breadcrumb) breadcrumb.innerHTML = crumbs;
+
+    // Parent directory
+    let items = '';
+    if (path !== '/') {
+        const parent = path.split('/').slice(0, -1).join('/') || '/';
+        items += `<li class="file-item" onclick="loadFiles('${parent}')"><span class="file-icon">⬆️</span><span class="file-name">..</span><span class="file-size"></span></li>`;
+    }
+
+    list.forEach(f => {
+        const icon = f.isDir ? '📁' : getFileIcon(f.name);
+        const click = f.isDir ? `onclick="loadFiles('${f.path}')"` : `onclick="viewFile('${f.path}')"`;
+        items += `<li class="file-item" ${click}><span class="file-icon">${icon}</span><span class="file-name">${f.name}</span><span class="file-perm">${f.permissions}</span><span class="file-size">${f.isDir ? '-' : formatBytes(f.size)}</span><span class="file-modified">${f.modified ? new Date(f.modified).toLocaleString() : ''}</span></li>`;
+    });
+
+    fileList.innerHTML = items || '<li class="empty-state">Empty directory</li>';
+}
+
+function getFileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const icons = { js: '📜', ts: '📘', py: '🐍', rs: '🦀', go: '🔵', php: '🐘', html: '🌐', css: '🎨', json: '📋', md: '📝', sh: '⚙️', yml: '📄', yaml: '📄', toml: '📄', sql: '🗄️', log: '📋', txt: '📝', png: '🖼️', jpg: '🖼️', svg: '🖼️', zip: '📦', tar: '📦', gz: '📦' };
+    return icons[ext] || '📄';
+}
+
+async function viewFile(path) {
+    const data = await fetchAPI(`/api/files/read?path=${encodeURIComponent(path)}`);
+    showModal('Edit File: ' + path.split('/').pop(), `<textarea id="fileContent" style="width:100%;height:300px;font-family:monospace;font-size:12px">${(data.content || '').replace(/</g,'&lt;')}</textarea>`, async () => {
+        await postAPI('/api/files/write', { path, content: document.getElementById('fileContent').value });
+        showToast('File saved');
+    });
+}
+
+async function viewLog(source) {
+    const data = await fetchAPI(`/api/logs/${source}?lines=200`);
+    const viewer = document.getElementById('logViewer');
+    const content = document.getElementById('logContent');
+    const title = document.getElementById('logTitle');
+    if (viewer) { viewer.style.display = 'block'; title.textContent = 'Log: ' + source; content.textContent = (data.lines || []).join('\n'); content.scrollTop = content.scrollHeight; }
+}
+
+// ========== TERMINAL ==========
+
+function initTerminal() {
+    if (typeof Terminal === 'undefined') { setTimeout(initTerminal, 500); return; }
+    const term = new Terminal({ theme: { background: '#0a0e1a', foreground: '#e2e8f0', cursor: '#6366f1', selectionBackground: 'rgba(99,102,241,0.3)' }, fontFamily: '"JetBrains Mono", "Fira Code", monospace', fontSize: 14, cursorBlink: true });
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    const el = document.getElementById('terminal-el');
+    if (!el) return;
+    term.open(el);
+    fitAddon.fit();
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${location.host}/api/terminal/ws`);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+        ws.send(JSON.stringify({type: 'resize', cols: term.cols, rows: term.rows}));
+        term.onData(data => ws.send(data));
+        term.onResize(({cols, rows}) => ws.send(JSON.stringify({type: 'resize', cols, rows})));
+    };
+    ws.onmessage = (e) => {
+        if (e.data instanceof ArrayBuffer) { term.write(new Uint8Array(e.data)); }
+        else { term.write(e.data); }
+    };
+    ws.onclose = () => term.write('\r\n\x1b[31mConnection closed\x1b[0m\r\n');
+
+    window.addEventListener('resize', () => fitAddon.fit());
+}
+
+// ========== CREATE MODALS ==========
+
+function addWebsite() {
+    showModal('Create Website', `
+        <div class="form-group"><label>Domain</label><input type="text" id="newDomain" placeholder="example.com"></div>
+        <div class="form-group"><label>Engine</label><select id="newEngine"><option value="nginx">Nginx</option><option value="apache">Apache</option></select></div>
+        <div class="form-group"><label>Type</label><select id="newType"><option value="static">Static</option><option value="php">PHP</option><option value="node">Node.js</option><option value="proxy">Proxy</option></select></div>
+    `, async () => {
+        await postAPI('/api/websites', { domain: document.getElementById('newDomain').value, engine: document.getElementById('newEngine').value, projectType: document.getElementById('newType').value });
+        showToast('Website created'); location.reload();
+    });
+}
+
+function addDatabase() {
+    showModal('Create Database', `
+        <div class="form-group"><label>Name</label><input type="text" id="newDbName" placeholder="my_database"></div>
+        <div class="form-group"><label>Engine</label><select id="newDbEngine"><option value="mysql">MySQL/MariaDB</option><option value="postgresql">PostgreSQL</option></select></div>
+    `, async () => {
+        await postAPI('/api/databases', { name: document.getElementById('newDbName').value, engine: document.getElementById('newDbEngine').value });
+        showToast('Database created'); location.reload();
+    });
+}
+
+function addCron() {
+    showModal('Create Cron Job', `
+        <div class="form-group"><label>Name</label><input type="text" id="newCronName" placeholder="Backup"></div>
+        <div class="form-group"><label>Schedule</label><input type="text" id="newCronSchedule" placeholder="0 2 * * *"></div>
+        <div class="form-group"><label>Command</label><input type="text" id="newCronCmd" placeholder="/scripts/backup.sh"></div>
+    `, async () => {
+        await postAPI('/api/crons', { name: document.getElementById('newCronName').value, schedule: document.getElementById('newCronSchedule').value, command: document.getElementById('newCronCmd').value });
+        showToast('Cron job created'); location.reload();
+    });
+}
+
+function addFirewallRule() {
+    showModal('Add Firewall Rule', `
+        <div class="form-group"><label>Port</label><input type="number" id="newFwPort" placeholder="443"></div>
+        <div class="form-group"><label>Protocol</label><select id="newFwProto"><option value="tcp">TCP</option><option value="udp">UDP</option></select></div>
+        <div class="form-group"><label>Action</label><select id="newFwAction"><option value="allow">Allow</option><option value="deny">Deny</option></select></div>
+        <div class="form-group"><label>Description</label><input type="text" id="newFwDesc" placeholder="HTTPS"></div>
+    `, async () => {
+        await postAPI('/api/firewall/rules', { port: parseInt(document.getElementById('newFwPort').value), protocol: document.getElementById('newFwProto').value, action: document.getElementById('newFwAction').value, description: document.getElementById('newFwDesc').value });
+        showToast('Rule added'); location.reload();
+    });
+}
+
+function requestSSL() {
+    showModal('Request Let\'s Encrypt SSL', `
+        <div class="form-group"><label>Domain</label><input type="text" id="sslDomain" placeholder="example.com"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="sslEmail" placeholder="admin@example.com"></div>
+    `, async () => {
+        await postAPI('/api/ssl/letsencrypt', { domain: document.getElementById('sslDomain').value, email: document.getElementById('sslEmail').value });
+        showToast('SSL requested'); location.reload();
+    });
+}
+
+function selfSigned() {
+    showModal('Generate Self-Signed SSL', `
+        <div class="form-group"><label>Domain</label><input type="text" id="ssDomain" placeholder="example.com"></div>
+    `, async () => {
+        await postAPI('/api/ssl/self-signed', { domain: document.getElementById('ssDomain').value });
+        showToast('Certificate generated'); location.reload();
+    });
+}
+
+// ========== NAVIGATION ==========
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+function logout() {
+    localStorage.removeItem('biz_token');
+    document.cookie = 'biz_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    window.location.href = '/login';
+}
+
+// Check auth on page load
+if (!localStorage.getItem('biz_token') && !window.location.pathname.includes('/login')) {
+    window.location.href = '/login';
+}
