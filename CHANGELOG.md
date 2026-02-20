@@ -2,6 +2,44 @@
 
 All notable changes to Biz-Panel will be documented in this file.
 
+## [2.0.0] - 2026-02-20 - The Rust Rewrite & Production Polish
+
+### Added
+- **Complete Rust Backend Rewrite**
+  - Migrated from Go to Rust (Axum, Tokio, Rusqlite, Sysinfo)
+  - Single static binary compilation for extreme performance and memory safety
+  - Background task system (`src/api/tasks.rs`) for non-blocking long-running operations
+  - Advanced Axum routing with proper parameter extraction (fixed `:id` syntax)
+
+- **Comprehensive Backup System**
+  - Full local backups (via `tar` and `mysqldump`)
+  - Seamless Cloud Storage integration (Google Drive, Amazon S3, FTP) powered by `rclone`
+  - Automated interactive background execution with status polling
+
+- **Monitoring History & Real-Time Visualization**
+  - Historical data collection (CPU, RAM, Disk, Network) every 5 minutes
+  - Dedicated "Monitoring" page with dynamic `Chart.js` graphs
+  - 7-day automated metric log rotation
+
+- **Server Security Audit (1-Click Hardening Check)**
+  - Advanced security analyzer running on the "Firewall" view
+  - Scans for: Root SSH login status, default SSH port (22), Fail2ban service, UFW/Iptables firewalls, and Unattended Upgrades
+  - Visual scoring (A, B, C, F) with detailed recommendations
+
+- **Advanced PHP Extensions Manager**
+  - Expanded extension registry to 20+ modules (Memcached, OPcache, Redis, MongoDB, Swoole, igbinary, pgsql, etc.)
+  - Interactive "Plug-ins" modal for 1-click install/uninstall
+  - Asynchronous installation tracking with real-time UI feedback
+
+### Changed
+- Refactored frontend API calls to handle the Rust backend's standard task/job responses consistently.
+- Improved frontend modals to support background task lifecycle (`pollTask`).
+
+### Fixed
+- Fixed Axum route parameter syntax issues preventing installations and service modifications (converted `{var}` to `:var`).
+- Fixed fetching issues on empty JSON responses.
+- Fixed UI inconsistencies with missing or undefined task IDs.
+
 ## [1.3.0] - 2026-01-19 - Production Deployment & Service Management
 
 ### Added
