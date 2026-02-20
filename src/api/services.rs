@@ -174,80 +174,76 @@ pub async fn get_service(Path(id): Path<String>) -> impl IntoResponse {
 }
 
 pub async fn install_service(Path(id): Path<String>) -> impl IntoResponse {
-    let pkg = get_package_name(&id);
+    use super::tasks;
 
-    // Special installs
-    let result = match id.as_str() {
-        "nodejs" => {
-            Command::new("bash")
-                .args(["-c", "curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs"])
-                .output()
-        }
-        "pm2" => Command::new("npm").args(["install", "-g", "pm2"]).output(),
-        "composer" => {
-            Command::new("bash")
-                .args(["-c", "curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer"])
-                .output()
-        }
-        "rust" => {
-            Command::new("bash")
-                .args(["-c", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"])
-                .output()
-        }
+    let name = format!("Install {}", id);
+
+    // Build install command
+    let install_cmd = match id.as_str() {
+        "nodejs" => "curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs".to_string(),
+        "pm2" => "npm install -g pm2".to_string(),
+        "composer" => "curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer".to_string(),
+        "rust" => "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y".to_string(),
         _ => {
-            Command::new("bash")
-                .args(["-c", &format!("DEBIAN_FRONTEND=noninteractive apt-get install -y {}", pkg)])
-                .output()
+            let pkg = get_package_name(&id);
+            format!("DEBIAN_FRONTEND=noninteractive apt-get install -y {}", pkg)
         }
     };
 
-    match result {
-        Ok(o) if o.status.success() => {
-            // Enable and start if it has a systemd unit
-            let registry = get_service_registry();
-            if let Some(s) = registry.iter().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
-                let unit = s.get("systemdUnit").and_then(|v| v.as_str()).unwrap_or("");
-                if !unit.is_empty() {
-                    Command::new("systemctl").args(["enable", "--now", unit]).output().ok();
-                }
-            }
-            Json(json!({"message": format!("{} installed successfully", id)})).into_response()
-        }
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": stderr}))).into_response()
-        }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    // Build post-install command (enable systemd unit)
+    let registry = get_service_registry();
+    let post_cmd = registry.iter()
+        .find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id))
+        .and_then(|s| s.get("systemdUnit").and_then(|v| v.as_str()))
+        .filter(|u| !u.is_empty())
+        .map(|u| format!("systemctl enable --now {}", u));
+
+    let task_id = tasks::spawn_task_with_post(
+        &name,
+        &install_cmd,
+        post_cmd.as_deref(),
+    );
+
+    Json(json!({
+        "taskId": task_id,
+        "status": "installing",
+        "message": format!("{} installation started in background", id),
+    })).into_response()
 }
 
 pub async fn uninstall_service(Path(id): Path<String>) -> impl IntoResponse {
+    use super::tasks;
+
     let pkg = get_package_name(&id);
+    let name = format!("Uninstall {}", id);
 
-    // Stop service first
+    // Build full uninstall command: stop + disable + purge
     let registry = get_service_registry();
-    if let Some(s) = registry.iter().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
-        let unit = s.get("systemdUnit").and_then(|v| v.as_str()).unwrap_or("");
-        if !unit.is_empty() {
-            Command::new("systemctl").args(["stop", unit]).output().ok();
-            Command::new("systemctl").args(["disable", unit]).output().ok();
-        }
-    }
+    let unit = registry.iter()
+        .find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id))
+        .and_then(|s| s.get("systemdUnit").and_then(|v| v.as_str()))
+        .unwrap_or("");
 
-    let result = match id.as_str() {
-        "pm2" => Command::new("npm").args(["uninstall", "-g", "pm2"]).output(),
+    let cmd = match id.as_str() {
+        "pm2" => "npm uninstall -g pm2".to_string(),
         _ => {
-            Command::new("bash")
-                .args(["-c", &format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {} && apt-get autoremove -y", pkg)])
-                .output()
+            let mut parts = Vec::new();
+            if !unit.is_empty() {
+                parts.push(format!("systemctl stop {} 2>/dev/null || true", unit));
+                parts.push(format!("systemctl disable {} 2>/dev/null || true", unit));
+            }
+            parts.push(format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {} && apt-get autoremove -y", pkg));
+            parts.join(" && ")
         }
     };
 
-    match result {
-        Ok(o) if o.status.success() => Json(json!({"message": format!("{} uninstalled", id)})).into_response(),
-        Ok(o) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": String::from_utf8_lossy(&o.stderr).to_string()}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    let task_id = tasks::spawn_bash_task(&name, &cmd);
+
+    Json(json!({
+        "taskId": task_id,
+        "status": "uninstalling",
+        "message": format!("{} uninstall started in background", id),
+    })).into_response()
 }
 
 pub async fn control_service(Path((id, action)): Path<(String, String)>) -> impl IntoResponse {

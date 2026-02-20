@@ -1070,15 +1070,48 @@ function selectDir(targetInputId, path) {
     if (browserEl) browserEl.style.display = 'none';
 }
 
+// ===== TASK POLLING SYSTEM =====
+async function pollTask(taskId, label, btn) {
+    const poll = async () => {
+        try {
+            const task = await fetchAPI(`/api/tasks/${taskId}`);
+            if (!task || task.error === 'Task not found') {
+                showToast('Task tracking lost', 'error');
+                if (btn) { btn.disabled = false; btn.textContent = label; }
+                return;
+            }
+            if (task.status === 'running') {
+                if (btn) btn.textContent = `${label}... ${task.elapsed || 0}s`;
+                setTimeout(poll, 2000);
+            } else if (task.status === 'success') {
+                showToast(`✓ ${task.name} completed! (${task.elapsed}s)`);
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(`✗ ${task.name} failed: ${(task.error || '').substring(0, 200)}`, 'error');
+                if (btn) { btn.disabled = false; btn.textContent = label; }
+            }
+        } catch (err) {
+            setTimeout(poll, 3000); // retry on network error
+        }
+    };
+    poll();
+}
+
 async function installService(id) {
     const btn = event?.target;
     if (btn) { btn.disabled = true; btn.textContent = 'Installing...'; }
-    showToast('Installing ' + id + '... This may take a minute.', 'info');
+    showToast('Starting ' + id + ' installation...', 'info');
     try {
         const res = await postAPI(`/api/services/${id}/install`, {});
-        if (res?.error) { showToast('Error: ' + res.error, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Install'; } return; }
-        showToast(res?.message || id + ' installed!');
-        setTimeout(() => location.reload(), 2000);
+        if (res?.taskId) {
+            pollTask(res.taskId, 'Install', btn);
+        } else if (res?.error) {
+            showToast('Error: ' + res.error, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Install'; }
+        } else {
+            showToast(res?.message || 'Installed!');
+            setTimeout(() => location.reload(), 2000);
+        }
     } catch (err) {
         showToast('Install failed: ' + (err.message || err), 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Install'; }
@@ -1089,12 +1122,18 @@ async function uninstallService(id) {
     if (!confirm('Are you sure you want to uninstall ' + id + '?')) return;
     const btn = event?.target;
     if (btn) { btn.disabled = true; btn.textContent = 'Removing...'; }
-    showToast('Uninstalling ' + id + '...', 'info');
+    showToast('Starting ' + id + ' removal...', 'info');
     try {
         const res = await postAPI(`/api/services/${id}/uninstall`, {});
-        if (res?.error) { showToast('Error: ' + res.error, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; } return; }
-        showToast(res?.message || id + ' uninstalled!');
-        setTimeout(() => location.reload(), 1500);
+        if (res?.taskId) {
+            pollTask(res.taskId, 'Uninstall', btn);
+        } else if (res?.error) {
+            showToast('Error: ' + res.error, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; }
+        } else {
+            showToast(res?.message || 'Uninstalled!');
+            setTimeout(() => location.reload(), 1500);
+        }
     } catch (err) {
         showToast('Uninstall failed: ' + (err.message || err), 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; }

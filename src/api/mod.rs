@@ -7,6 +7,7 @@ pub mod logs;
 pub mod terminal;
 pub mod services;
 pub mod docker;
+pub mod tasks;
 pub mod ssl;
 pub mod software;
 pub mod php;
@@ -125,6 +126,9 @@ fn protected_routes() -> Router {
         .route("/templates/categories", get(templates::get_categories))
         .route("/templates/{id}", get(templates::get_template))
         .route("/templates/{id}/deploy", post(templates::deploy_template))
+        // Background Tasks
+        .route("/tasks", get(tasks::list_tasks))
+        .route("/tasks/{id}", get(tasks::get_task_status))
         // Apply auth middleware
         .layer(axum_middleware::from_fn(crate::auth::middleware::require_auth))
 }
