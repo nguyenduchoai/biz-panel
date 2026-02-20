@@ -664,8 +664,162 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }
 
 /* Activity styling */
-.activity-item { padding: 16px 0; }
+.activity-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
 .activity-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
 .activity-desc { font-size: 13px; color: var(--text-secondary); }
 
-/* Custom Login overrides if needed but sticking to same variables works well */
+/* ========== DOCKER PAGE ========== */
+
+/* Project Groups */
+.docker-project-group {
+    margin-bottom: 24px;
+}
+
+.docker-project-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.docker-project-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 16px; font-weight: 600; color: var(--text-primary);
+}
+
+/* Container List */
+.docker-container-list {
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+.docker-container-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.docker-container-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-hover);
+}
+
+.docker-container-card.docker-stopped {
+    opacity: 0.7;
+}
+.docker-container-card.docker-stopped:hover {
+    opacity: 1;
+}
+
+/* Main row: status + name + stats */
+.docker-container-main {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    gap: 16px;
+}
+
+.docker-container-left {
+    display: flex; align-items: center; gap: 16px;
+    min-width: 0;
+}
+
+.docker-container-status { flex-shrink: 0; }
+
+.docker-status-dot {
+    display: block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+.docker-status-dot.status-running {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+.docker-status-dot.status-stopped {
+    background: var(--danger);
+}
+
+.docker-container-info { min-width: 0; }
+.docker-container-name {
+    font-size: 15px; font-weight: 600; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 300px;
+}
+.docker-container-image {
+    font-size: 13px; color: var(--text-muted);
+    font-family: var(--font-mono); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.docker-container-right {
+    flex-shrink: 0;
+}
+
+/* Stats Grid */
+.docker-stats-grid {
+    display: flex; gap: 24px; align-items: center;
+}
+
+.docker-stat-item {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    min-width: 70px;
+}
+
+.docker-stat-label {
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.docker-stat-value {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+
+.docker-stopped-info {
+    display: flex; align-items: center;
+}
+
+/* Meta row: ports, networks, actions */
+.docker-container-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.docker-meta-tags {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    flex: 1; min-width: 0;
+}
+
+.docker-meta-tags .tag {
+    font-size: 11px; max-width: 250px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.docker-container-actions {
+    display: flex; gap: 8px; flex-shrink: 0;
+}
+
+/* Responsive Docker */
+@media (max-width: 1024px) {
+    .docker-container-main { flex-direction: column; align-items: flex-start; }
+    .docker-stats-grid { flex-wrap: wrap; gap: 12px; }
+    .docker-stat-item { align-items: flex-start; }
+    .docker-container-meta { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 768px) {
+    .docker-stats-grid { gap: 8px; }
+    .docker-container-actions { flex-wrap: wrap; }
+}
+
+/* Data table wrapper overflow */
+.data-table-wrapper { overflow-x: auto; }
