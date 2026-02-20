@@ -1177,14 +1177,59 @@ async function serviceControl(id, action) {
     }
 }
 
-async function installSW(id) { showToast('Installing...', 'info'); await postAPI(`/api/software/${id}/install`); showToast('Installed!'); setTimeout(() => location.reload(), 2000); }
-async function uninstallSW(id) { if (!confirm('Uninstall?')) return; await postAPI(`/api/software/${id}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+async function installSW(id) {
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Installing...'; }
+    showToast('Starting installation...', 'info');
+    try {
+        const res = await postAPI(`/api/software/${id}/install`, {});
+        if (res?.taskId) { pollTask(res.taskId, 'Install', btn); }
+        else { showToast(res?.message || 'Done'); setTimeout(() => location.reload(), 2000); }
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Install'; } }
+}
+async function uninstallSW(id) {
+    if (!confirm('Uninstall?')) return;
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Removing...'; }
+    try {
+        const res = await postAPI(`/api/software/${id}/uninstall`, {});
+        if (res?.taskId) { pollTask(res.taskId, 'Uninstall', btn); }
+        else { showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; } }
+}
 
-async function installPHP(v) { showToast('Installing PHP ' + v + '...', 'info'); await postAPI(`/api/php/versions/${v}/install`); showToast('Installed!'); setTimeout(() => location.reload(), 2000); }
-async function uninstallPHP(v) { if (!confirm('Uninstall?')) return; await postAPI(`/api/php/versions/${v}/uninstall`); showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
-async function phpAction(v, action) { await postAPI(`/api/php/versions/${v}/${action}`); showToast(`PHP-FPM ${action}`); setTimeout(() => location.reload(), 1000); }
+async function installPHP(v) {
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Installing...'; }
+    showToast('Starting PHP ' + v + ' installation...', 'info');
+    try {
+        const res = await postAPI(`/api/php/versions/${v}/install`, {});
+        if (res?.taskId) { pollTask(res.taskId, 'Install', btn); }
+        else { showToast(res?.message || 'Done'); setTimeout(() => location.reload(), 2000); }
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Install'; } }
+}
+async function uninstallPHP(v) {
+    if (!confirm('Uninstall PHP ' + v + '?')) return;
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Removing...'; }
+    try {
+        const res = await postAPI(`/api/php/versions/${v}/uninstall`, {});
+        if (res?.taskId) { pollTask(res.taskId, 'Uninstall', btn); }
+        else { showToast('Uninstalled'); setTimeout(() => location.reload(), 1000); }
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Uninstall'; } }
+}
+async function phpAction(v, action) { await postAPI(`/api/php/versions/${v}/${action}`, {}); showToast(`PHP-FPM ${action}`); setTimeout(() => location.reload(), 1000); }
 
-async function deployApp(id) { showToast('Deploying...', 'info'); await postAPI(`/api/templates/${id}/deploy`, {}); showToast('Deployed!'); }
+async function deployApp(id) {
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Deploying...'; }
+    showToast('Starting deployment...', 'info');
+    try {
+        const res = await postAPI(`/api/templates/${id}/deploy`, {});
+        if (res?.taskId) { pollTask(res.taskId, 'Deploy', btn); }
+        else { showToast(res?.message || 'Deployed!'); if (btn) { btn.disabled = false; btn.textContent = 'Deploy'; } }
+    } catch (err) { showToast('Deploy failed: ' + err.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Deploy'; } }
+}
 
 async function saveSettings() { await putAPI('/api/settings', { general: { panelTitle: document.getElementById('settTitle').value, timezone: document.getElementById('settTimezone').value, language: document.getElementById('settLanguage').value }}); showToast('Settings saved'); }
 

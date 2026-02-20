@@ -40,6 +40,8 @@ pub async fn get_template(Path(id): Path<String>) -> impl IntoResponse {
 }
 
 pub async fn deploy_template(Path(id): Path<String>, Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    use super::tasks;
+
     let templates = get_template_list();
     let template = match templates.iter().find(|t| t.get("id").and_then(|v| v.as_str()) == Some(&id)) {
         Some(t) => t,
@@ -50,39 +52,37 @@ pub async fn deploy_template(Path(id): Path<String>, Json(body): Json<serde_json
     let name = template.get("name").and_then(|v| v.as_str()).unwrap_or(&id);
     let container_name = format!("biz-{}", id);
 
-    // Build port mappings
-    let mut port_args = Vec::new();
+    // Build docker run command
+    let mut cmd_parts = vec![format!("docker pull {} &&", image)];
+    cmd_parts.push(format!("docker run -d --name {} --restart unless-stopped", container_name));
+
+    // Port mappings
     if let Some(ports) = template.get("ports").and_then(|v| v.as_array()) {
         for p in ports {
             let host = p.get("host").and_then(|v| v.as_u64()).unwrap_or(0);
             let container = p.get("container").and_then(|v| v.as_u64()).unwrap_or(0);
-            port_args.push("-p".to_string());
-            port_args.push(format!("{}:{}", host, container));
+            cmd_parts.push(format!("-p {}:{}", host, container));
         }
     }
 
-    // Build env vars
-    let mut env_args = Vec::new();
+    // Env vars
     if let Some(custom_env) = body.get("env").and_then(|v| v.as_object()) {
         for (k, v) in custom_env {
-            env_args.push("-e".to_string());
-            env_args.push(format!("{}={}", k, v.as_str().unwrap_or("")));
+            cmd_parts.push(format!("-e {}={}", k, v.as_str().unwrap_or("")));
         }
     }
 
-    let mut args = vec!["run", "-d", "--name", &container_name, "--restart", "unless-stopped"];
-    let port_refs: Vec<&str> = port_args.iter().map(|s| s.as_str()).collect();
-    let env_refs: Vec<&str> = env_args.iter().map(|s| s.as_str()).collect();
-    args.extend(port_refs);
-    args.extend(env_refs);
-    args.push(image);
+    cmd_parts.push(image.to_string());
+    let full_cmd = cmd_parts.join(" ");
 
-    match Command::new("docker").args(&args).output() {
-        Ok(o) if o.status.success() => {
-            let container_id = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            (StatusCode::CREATED, Json(json!({"message": format!("{} deployed", name), "containerId": container_id}))).into_response()
-        }
-        Ok(o) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": String::from_utf8_lossy(&o.stderr).to_string()}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    let task_id = tasks::spawn_bash_task(
+        &format!("Deploy {}", name),
+        &full_cmd,
+    );
+
+    (StatusCode::ACCEPTED, Json(json!({
+        "taskId": task_id,
+        "status": "deploying",
+        "message": format!("{} deployment started", name),
+    }))).into_response()
 }

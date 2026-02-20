@@ -31,25 +31,21 @@ fn check_sw(pkg: &str, name: &str, category: &str, icon: &str) -> serde_json::Va
 }
 
 pub async fn install_software(Path(id): Path<String>) -> impl IntoResponse {
-    let output = Command::new("bash")
-        .args(["-c", &format!("DEBIAN_FRONTEND=noninteractive apt-get install -y {}", id)])
-        .output();
-    match output {
-        Ok(o) if o.status.success() => Json(json!({"message": format!("{} installed", id)})).into_response(),
-        Ok(o) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": String::from_utf8_lossy(&o.stderr).to_string()}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    use super::tasks;
+    let task_id = tasks::spawn_bash_task(
+        &format!("Install {}", id),
+        &format!("DEBIAN_FRONTEND=noninteractive apt-get install -y {}", id),
+    );
+    Json(json!({"taskId": task_id, "status": "installing", "message": format!("{} installation started", id)}))
 }
 
 pub async fn uninstall_software(Path(id): Path<String>) -> impl IntoResponse {
-    let output = Command::new("bash")
-        .args(["-c", &format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {} && apt-get autoremove -y", id)])
-        .output();
-    match output {
-        Ok(o) if o.status.success() => Json(json!({"message": format!("{} uninstalled", id)})).into_response(),
-        Ok(o) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": String::from_utf8_lossy(&o.stderr).to_string()}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    use super::tasks;
+    let task_id = tasks::spawn_bash_task(
+        &format!("Uninstall {}", id),
+        &format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {} && apt-get autoremove -y", id),
+    );
+    Json(json!({"taskId": task_id, "status": "uninstalling", "message": format!("{} removal started", id)}))
 }
 
 pub async fn service_action(Path((id, action)): Path<(String, String)>) -> impl IntoResponse {

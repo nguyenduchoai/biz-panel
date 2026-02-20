@@ -274,7 +274,6 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
 
                 <div class="nav-section">Services</div>
                 <a href="/services" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Services</span></a>
-                <a href="/software" class="nav-item"><span class="nav-icon">📦</span><span class="nav-label">Software</span></a>
                 <a href="/php" class="nav-item"><span class="nav-icon">🐘</span><span class="nav-label">PHP</span></a>
                 <a href="/appstore" class="nav-item"><span class="nav-icon">🛒</span><span class="nav-label">App Store</span></a>
 
