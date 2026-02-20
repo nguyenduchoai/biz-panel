@@ -73,7 +73,7 @@ function showModal(title, content, onSubmit) {
         </div></div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    document.getElementById('modalSubmit').addEventListener('click', () => { onSubmit(); });
+    document.getElementById('modalSubmit').addEventListener('click', () => { onSubmit(); overlay.remove(); });
 }
 
 // ========== PAGE RENDERERS ==========
