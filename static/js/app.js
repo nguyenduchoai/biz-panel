@@ -130,6 +130,7 @@ function renderDockerPage(containers, stats, overview) {
             <h2>🐳 Docker</h2>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="showDeployContainerForm()">+ Deploy Container</button>
+                <button class="btn btn-secondary" onclick="showComposeForm()">📄 Compose</button>
                 <button class="btn btn-secondary" onclick="showPullImageForm()">⬇ Pull Image</button>
                 <button class="btn btn-secondary" onclick="showDockerTab('containers')" id="dockerTabBtn-containers">Containers</button>
                 <button class="btn btn-secondary" onclick="showDockerTab('images')" id="dockerTabBtn-images">Images</button>
@@ -486,7 +487,10 @@ async function showDockerTab(tab) {
         const nets = await fetchAPI('/api/docker/networks').catch(() => []);
         const list = Array.isArray(nets) ? nets : [];
         tabEl.innerHTML = `
-            <div class="data-table-wrapper" style="margin-top:8px">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+                <button class="btn btn-primary btn-sm" onclick="showCreateNetworkForm()">+ Create Network</button>
+            </div>
+            <div class="data-table-wrapper">
             <table class="data-table"><thead><tr><th>Name</th><th>Driver</th><th>Scope</th><th>ID</th><th>Actions</th></tr></thead>
             <tbody>${list.map(n => `<tr>
                 <td style="font-weight:600">${n.name}</td><td><span class="tag">${n.driver}</span></td>
@@ -716,6 +720,142 @@ async function pullImage() {
 function closeModal() {
     const overlay = document.querySelector('.modal-overlay');
     if (overlay) overlay.remove();
+}
+
+// ===== DOCKER COMPOSE =====
+function showComposeForm() {
+    showModal('📄 Docker Compose Deploy', `
+        <div style="max-height:60vh;overflow-y:auto;padding-right:8px">
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" id="compose-project" placeholder="my-project">
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:12px">
+                    Deploy Mode
+                    <div style="display:flex;gap:8px">
+                        <button type="button" class="btn btn-sm btn-primary" id="compose-mode-paste" onclick="switchComposeMode('paste')">Paste Config</button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="compose-mode-dir" onclick="switchComposeMode('dir')">From Directory</button>
+                    </div>
+                </label>
+            </div>
+
+            <div id="compose-paste-panel">
+                <div class="form-group">
+                    <label>docker-compose.yml</label>
+                    <textarea id="compose-config" rows="14" placeholder="version: '3.8'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - '80:80'
+  db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:" style="font-family:var(--font-mono);font-size:13px;resize:vertical;tab-size:2"></textarea>
+                </div>
+            </div>
+
+            <div id="compose-dir-panel" style="display:none">
+                <div class="form-group">
+                    <label>Directory Path</label>
+                    <input type="text" id="compose-directory" placeholder="/home/user/my-project">
+                    <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
+                        Directory phải chứa file <code style="color:var(--text-secondary)">docker-compose.yml</code> hoặc <code style="color:var(--text-secondary)">compose.yml</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `, deployCompose);
+}
+
+function switchComposeMode(mode) {
+    const pastePanel = document.getElementById('compose-paste-panel');
+    const dirPanel = document.getElementById('compose-dir-panel');
+    const pasteBtn = document.getElementById('compose-mode-paste');
+    const dirBtn = document.getElementById('compose-mode-dir');
+    if (mode === 'paste') {
+        pastePanel.style.display = 'block'; dirPanel.style.display = 'none';
+        pasteBtn.className = 'btn btn-sm btn-primary'; dirBtn.className = 'btn btn-sm btn-secondary';
+    } else {
+        pastePanel.style.display = 'none'; dirPanel.style.display = 'block';
+        pasteBtn.className = 'btn btn-sm btn-secondary'; dirBtn.className = 'btn btn-sm btn-primary';
+    }
+}
+
+async function deployCompose() {
+    const project = document.getElementById('compose-project')?.value?.trim() || '';
+    const config = document.getElementById('compose-config')?.value?.trim() || '';
+    const directory = document.getElementById('compose-directory')?.value?.trim() || '';
+
+    if (!config && !directory) {
+        showToast('Paste YAML config hoặc nhập đường dẫn thư mục', 'error');
+        return;
+    }
+
+    showToast('Deploying stack...', 'info');
+    closeModal();
+
+    try {
+        const body = { project };
+        if (config) body.config = config;
+        if (directory) body.directory = directory;
+
+        const res = await postAPI('/api/docker/compose/up', body);
+        showToast(res.message || 'Stack deployed!');
+        setTimeout(() => loadPageContent('docker'), 2000);
+    } catch (err) {
+        showToast('Deploy failed: ' + (err.message || err), 'error');
+    }
+}
+
+// ===== CREATE NETWORK =====
+function showCreateNetworkForm() {
+    showModal('🌐 Create Docker Network', `
+        <div class="form-group">
+            <label>Network Name *</label>
+            <input type="text" id="net-name" placeholder="my-network">
+        </div>
+        <div class="form-group">
+            <label>Driver</label>
+            <select id="net-driver">
+                <option value="bridge" selected>bridge — Default, isolated network</option>
+                <option value="host">host — Use host networking</option>
+                <option value="overlay">overlay — Multi-host (Swarm)</option>
+                <option value="macvlan">macvlan — Assign MAC address</option>
+                <option value="none">none — No networking</option>
+            </select>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
+            <b>bridge</b> — Mặc định, dùng cho hầu hết trường hợp. Mỗi project nên có 1 network riêng để cách ly.<br>
+            <b>overlay</b> — Dùng cho Docker Swarm, kết nối container giữa nhiều host.
+        </div>
+    `, createDockerNetwork);
+}
+
+async function createDockerNetwork() {
+    const name = document.getElementById('net-name')?.value?.trim();
+    const driver = document.getElementById('net-driver')?.value || 'bridge';
+    if (!name) { showToast('Network name is required', 'error'); return; }
+
+    showToast('Creating network...', 'info');
+    closeModal();
+
+    try {
+        await postAPI('/api/docker/networks', { name, driver });
+        showToast('Network "' + name + '" created!');
+        const el = document.getElementById('dockerTab-networks');
+        if (el) el.dataset.loaded = '';
+        showDockerTab('networks');
+    } catch (err) {
+        showToast('Failed: ' + (err.message || err), 'error');
+    }
 }
 
 async function installService(id) { showToast('Installing ' + id + '...', 'info'); const res = await postAPI(`/api/services/${id}/install`); showToast(res.message || 'Installed'); setTimeout(() => location.reload(), 2000); }

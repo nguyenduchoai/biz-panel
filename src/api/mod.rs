@@ -77,6 +77,8 @@ fn protected_routes() -> Router {
         .route("/docker/containers", get(docker::list_containers).post(docker::create_container))
         .route("/docker/containers/stats", get(docker::list_containers_stats))
         .route("/docker/images/pull", post(docker::pull_image))
+        .route("/docker/compose/up", post(docker::compose_up))
+        .route("/docker/compose/down", post(docker::compose_down))
         .route("/docker/containers/{id}", get(docker::get_container).delete(docker::remove_container))
         .route("/docker/containers/{id}/start", post(docker::start_container))
         .route("/docker/containers/{id}/stop", post(docker::stop_container))

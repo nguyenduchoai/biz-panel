@@ -302,6 +302,112 @@ pub async fn pull_image(Json(body): Json<serde_json::Value>) -> impl IntoRespons
     }
 }
 
+/// Deploy docker-compose stack
+/// Supports two modes:
+/// 1. "config" - paste YAML content, we write it to a project dir
+/// 2. "directory" - point to existing dir with docker-compose.yml
+pub async fn compose_up(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let project = body.get("project").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let config = body.get("config").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let directory = body.get("directory").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+
+    if config.is_empty() && directory.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Either 'config' (YAML content) or 'directory' path is required"}))).into_response();
+    }
+
+    let work_dir: String;
+
+    if !directory.is_empty() {
+        // Mode 2: Use existing directory
+        let compose_path = std::path::Path::new(&directory);
+        if !compose_path.exists() {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": format!("Directory not found: {}", directory)}))).into_response();
+        }
+        // Check if docker-compose.yml exists
+        let yml = compose_path.join("docker-compose.yml");
+        let yaml = compose_path.join("docker-compose.yaml");
+        let compose_yml = compose_path.join("compose.yml");
+        let compose_yaml = compose_path.join("compose.yaml");
+        if !yml.exists() && !yaml.exists() && !compose_yml.exists() && !compose_yaml.exists() {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": "No docker-compose.yml/yaml or compose.yml/yaml found in directory"}))).into_response();
+        }
+        work_dir = directory;
+    } else {
+        // Mode 1: Write config to project directory
+        let proj_name = if project.is_empty() {
+            format!("bizpanel-{}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs())
+        } else {
+            project.clone()
+        };
+
+        let proj_dir = format!("/opt/biz-panel/compose/{}", proj_name);
+        if let Err(e) = std::fs::create_dir_all(&proj_dir) {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("Failed to create dir: {}", e)}))).into_response();
+        }
+
+        let compose_file = format!("{}/docker-compose.yml", proj_dir);
+        if let Err(e) = std::fs::write(&compose_file, &config) {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("Failed to write config: {}", e)}))).into_response();
+        }
+
+        work_dir = proj_dir;
+    }
+
+    // Run docker compose up -d
+    let output = Command::new("docker")
+        .args(&["compose", "up", "-d"])
+        .current_dir(&work_dir)
+        .output();
+
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+            if o.status.success() {
+                (StatusCode::CREATED, Json(json!({
+                    "message": "Docker Compose stack deployed",
+                    "directory": work_dir,
+                    "output": format!("{}\n{}", stdout, stderr).trim().to_string()
+                }))).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({
+                    "error": stderr.trim(),
+                    "directory": work_dir
+                }))).into_response()
+            }
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+/// Stop and remove a docker-compose stack
+pub async fn compose_down(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let directory = body.get("directory").and_then(|v| v.as_str()).unwrap_or("");
+    if directory.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Directory path required"}))).into_response();
+    }
+
+    let output = Command::new("docker")
+        .args(&["compose", "down"])
+        .current_dir(directory)
+        .output();
+
+    match output {
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+            if o.status.success() {
+                Json(json!({"message": "Stack stopped and removed", "output": stderr.trim()})).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": stderr.trim()}))).into_response()
+            }
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
 pub async fn get_container(Path(id): Path<String>) -> impl IntoResponse {
     match docker_cmd(&["inspect", &id]) {
         Ok(data) => {
