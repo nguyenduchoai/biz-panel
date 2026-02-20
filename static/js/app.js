@@ -66,14 +66,14 @@ function showToast(message, type = 'success') {
 function showModal(title, content, onSubmit) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div>${content}</div>
+    overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div class="modal-body">${content}</div>
         <div class="modal-actions">
-            <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
             <button class="btn btn-primary" id="modalSubmit">Submit</button>
         </div></div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    document.getElementById('modalSubmit').addEventListener('click', () => { onSubmit(); overlay.remove(); });
+    document.getElementById('modalSubmit').addEventListener('click', () => { onSubmit(); });
 }
 
 // ========== PAGE RENDERERS ==========
