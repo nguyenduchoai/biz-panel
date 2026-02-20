@@ -246,13 +246,7 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
 
     <!-- app.js loaded in head -->
     <script>
-        // Highlight active nav
-        document.querySelectorAll('.nav-item').forEach(item => {
-            if (window.location.pathname === item.getAttribute('href') ||
-                (window.location.pathname === '/' && item.getAttribute('href') === '/')) {
-                item.classList.add('active');
-            }
-        });
+        // Highlight active nav (handled by app.js auto-init, this is a fallback)
     </script>
 </body>
 </html>"##;
@@ -464,99 +458,6 @@ const MAIN_APP_CONTENT: &str = r##"
 <div id="dynamicContent" class="dynamic-page">
     <div class="loading-spinner">Loading page content...</div>
 </div>
-<script>
-// SPA-like navigation - wait for app.js to be ready
-function initPage() {
-    const pageName = window.location.pathname.replace('/', '') || 'dashboard';
-    document.getElementById('pageTitle').textContent = pageName.charAt(0).toUpperCase() + pageName.slice(1);
-    loadPageContent(pageName);
-}
-if (typeof fetchAPI !== 'undefined') { initPage(); } else { document.addEventListener('DOMContentLoaded', initPage); }
-
-async function loadPageContent(page) {
-    const container = document.getElementById('dynamicContent');
-    const token = localStorage.getItem('biz_token');
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-    try {
-        switch(page) {
-            case 'websites':
-                const sites = await fetchAPI('/api/websites');
-                container.innerHTML = renderTable('Websites', '🌐', sites, ['id','domain','engine','status'], [
-                    {label: 'Add Website', action: 'addWebsite'}
-                ]);
-                break;
-            case 'databases':
-                const dbs = await fetchAPI('/api/databases');
-                container.innerHTML = renderTable('Databases', '🗄️', dbs, ['id','name','engine','charset'], [
-                    {label: 'Create Database', action: 'addDatabase'}
-                ]);
-                break;
-            case 'docker':
-                const containers = await fetchAPI('/api/docker/containers');
-                container.innerHTML = renderDockerPage(containers);
-                break;
-            case 'services':
-                const services = await fetchAPI('/api/services');
-                container.innerHTML = renderServicesPage(services);
-                break;
-            case 'files':
-                container.innerHTML = renderFileManager();
-                loadFiles('/');
-                break;
-            case 'terminal':
-                container.innerHTML = renderTerminal();
-                initTerminal();
-                break;
-            case 'logs':
-                const sources = await fetchAPI('/api/logs/sources');
-                container.innerHTML = renderLogsPage(sources);
-                break;
-            case 'cron':
-                const crons = await fetchAPI('/api/crons');
-                container.innerHTML = renderTable('Cron Jobs', '⏰', crons, ['id','name','schedule','command','enabled'], [
-                    {label: 'Add Cron Job', action: 'addCron'}
-                ]);
-                break;
-            case 'security':
-                const rules = await fetchAPI('/api/firewall/rules');
-                container.innerHTML = renderTable('Firewall Rules', '🛡️', rules, ['id','port','protocol','action','description'], [
-                    {label: 'Add Rule', action: 'addFirewallRule'}
-                ]);
-                break;
-            case 'ssl':
-                const certs = await fetchAPI('/api/ssl');
-                container.innerHTML = renderTable('SSL Certificates', '🔒', certs, ['id','domain','provider','status'], [
-                    {label: 'Request SSL', action: 'requestSSL'}, {label: 'Self-Signed', action: 'selfSigned'}
-                ]);
-                break;
-            case 'software':
-                const sw = await fetchAPI('/api/software');
-                container.innerHTML = renderSoftwarePage(sw);
-                break;
-            case 'php':
-                const phpVersions = await fetchAPI('/api/php/versions');
-                container.innerHTML = renderPHPPage(phpVersions);
-                break;
-            case 'appstore':
-                const templates = await fetchAPI('/api/templates');
-                container.innerHTML = renderAppStore(templates);
-                break;
-            case 'settings':
-                const settings = await fetchAPI('/api/settings');
-                container.innerHTML = renderSettingsPage(settings);
-                break;
-            case 'projects':
-                container.innerHTML = '<div class="page-header"><h2>📦 Projects</h2></div><div class="empty-state">Projects management - Coming soon</div>';
-                break;
-            default:
-                container.innerHTML = '<div class="empty-state">Page not found</div>';
-        }
-    } catch(err) {
-        container.innerHTML = `<div class="error-state">Error loading page: ${err.message}</div>`;
-    }
-}
-</script>
 "##;
 
 const MAIN_CSS: &str = include_str!("../../static/css/main.css");

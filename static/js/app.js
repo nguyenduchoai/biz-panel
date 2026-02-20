@@ -514,7 +514,120 @@ function logout() {
     window.location.href = '/login';
 }
 
-// Check auth on page load
-if (!localStorage.getItem('biz_token') && !window.location.pathname.includes('/login')) {
-    window.location.href = '/login';
+// ========== SPA PAGE AUTO-INIT ==========
+// Automatically detect page from URL and load content
+// This runs when app.js is fully loaded, no inline script dependencies
+
+async function loadPageContent(page) {
+    const container = document.getElementById('dynamicContent');
+    if (!container) return; // Not a dynamic page (e.g. dashboard has its own content)
+
+    try {
+        switch(page) {
+            case 'websites':
+                const sites = await fetchAPI('/api/websites');
+                container.innerHTML = renderTable('Websites', '🌐', sites, ['id','domain','engine','status'], [
+                    {label: 'Add Website', action: 'addWebsite'}
+                ]);
+                break;
+            case 'databases':
+                const dbs = await fetchAPI('/api/databases');
+                container.innerHTML = renderTable('Databases', '🗄️', dbs, ['id','name','engine','charset'], [
+                    {label: 'Create Database', action: 'addDatabase'}
+                ]);
+                break;
+            case 'docker':
+                const containers = await fetchAPI('/api/docker/containers');
+                container.innerHTML = renderDockerPage(containers);
+                break;
+            case 'services':
+                const services = await fetchAPI('/api/services');
+                container.innerHTML = renderServicesPage(services);
+                break;
+            case 'files':
+                container.innerHTML = renderFileManager();
+                loadFiles('/');
+                break;
+            case 'terminal':
+                container.innerHTML = renderTerminal();
+                initTerminal();
+                break;
+            case 'logs':
+                const sources = await fetchAPI('/api/logs/sources');
+                container.innerHTML = renderLogsPage(sources);
+                break;
+            case 'cron':
+                const crons = await fetchAPI('/api/crons');
+                container.innerHTML = renderTable('Cron Jobs', '⏰', crons, ['id','name','schedule','command','enabled'], [
+                    {label: 'Add Cron Job', action: 'addCron'}
+                ]);
+                break;
+            case 'security':
+                const rules = await fetchAPI('/api/firewall/rules');
+                container.innerHTML = renderTable('Firewall Rules', '🛡️', rules, ['id','port','protocol','action','description'], [
+                    {label: 'Add Rule', action: 'addFirewallRule'}
+                ]);
+                break;
+            case 'ssl':
+                const certs = await fetchAPI('/api/ssl');
+                container.innerHTML = renderTable('SSL Certificates', '🔒', certs, ['id','domain','provider','status'], [
+                    {label: 'Request SSL', action: 'requestSSL'}, {label: 'Self-Signed', action: 'selfSigned'}
+                ]);
+                break;
+            case 'software':
+                const sw = await fetchAPI('/api/software');
+                container.innerHTML = renderSoftwarePage(sw);
+                break;
+            case 'php':
+                const phpVersions = await fetchAPI('/api/php/versions');
+                container.innerHTML = renderPHPPage(phpVersions);
+                break;
+            case 'appstore':
+                const templates = await fetchAPI('/api/templates');
+                container.innerHTML = renderAppStore(templates);
+                break;
+            case 'settings':
+                const settings = await fetchAPI('/api/settings');
+                container.innerHTML = renderSettingsPage(settings);
+                break;
+            case 'projects':
+                container.innerHTML = '<div class="page-header"><h2>📦 Projects</h2></div><div class="empty-state">Projects management - Coming soon</div>';
+                break;
+            default:
+                container.innerHTML = '<div class="empty-state">Page not found</div>';
+        }
+    } catch(err) {
+        container.innerHTML = '<div class="error-state">Error loading page: ' + err.message + '</div>';
+    }
 }
+
+// Auto-init: detect page and load when DOM is ready
+(function() {
+    // Auth check (skip for login page)
+    if (!localStorage.getItem('biz_token') && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Auto-detect page and load content
+    var path = window.location.pathname.replace(/^\//, '') || 'dashboard';
+
+    // Set page title in topbar
+    var titleEl = document.getElementById('pageTitle');
+    if (titleEl && path !== 'dashboard') {
+        titleEl.textContent = path.charAt(0).toUpperCase() + path.slice(1);
+    }
+
+    // Highlight active nav item
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+        if (window.location.pathname === item.getAttribute('href') ||
+            (window.location.pathname === '/' && item.getAttribute('href') === '/')) {
+            item.classList.add('active');
+        }
+    });
+
+    // Load dynamic page content (if not dashboard — dashboard has its own inline init)
+    if (path !== 'dashboard' && path !== '' && document.getElementById('dynamicContent')) {
+        loadPageContent(path);
+    }
+})();
