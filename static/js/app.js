@@ -6,19 +6,44 @@ const API_TOKEN = () => localStorage.getItem('biz_token') || '';
 // ========== API HELPERS ==========
 
 async function fetchAPI(url, options = {}) {
-    const defaults = {
-        headers: {
-            'Authorization': `Bearer ${API_TOKEN()}`,
-            'Content-Type': 'application/json',
-        },
-    };
-    const res = await fetch(url, { ...defaults, ...options });
-    if (res.status === 401) { window.location.href = '/login'; return; }
-    return res.json();
+    const headers = { 'Content-Type': 'application/json' };
+    const token = API_TOKEN();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Merge headers from options
+    if (options.headers) Object.assign(headers, options.headers);
+
+    const config = { ...options, headers };
+    // Don't send body for GET/HEAD
+    if (!config.method || config.method === 'GET' || config.method === 'HEAD') {
+        delete config.body;
+    }
+
+    let res;
+    try {
+        res = await fetch(url, config);
+    } catch (err) {
+        throw new Error('Network error: ' + (err.message || 'Failed to connect'));
+    }
+
+    if (res.status === 401) { window.location.href = '/login'; return null; }
+
+    // Try to parse JSON, fall back to text
+    const text = await res.text();
+    let data;
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch {
+        data = { raw: text };
+    }
+
+    if (!res.ok && !data.error) {
+        data.error = data.error || `HTTP ${res.status}: ${res.statusText}`;
+    }
+    return data;
 }
 
 async function postAPI(url, data) {
-    return fetchAPI(url, { method: 'POST', body: JSON.stringify(data) });
+    return fetchAPI(url, { method: 'POST', body: data !== undefined ? JSON.stringify(data) : undefined });
 }
 
 async function putAPI(url, data) {

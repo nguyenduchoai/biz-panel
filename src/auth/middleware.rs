@@ -59,7 +59,11 @@ pub async fn require_auth(request: Request<Body>, next: Next) -> Result<Response
                         .body(Body::empty())
                         .unwrap())
                 } else {
-                    Err(StatusCode::UNAUTHORIZED)
+                    Ok(Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .header("Content-Type", "application/json")
+                        .body(Body::from(r#"{"error":"Invalid or expired token"}"#))
+                        .unwrap())
                 }
             }
         }
@@ -72,7 +76,11 @@ pub async fn require_auth(request: Request<Body>, next: Next) -> Result<Response
                     .body(Body::empty())
                     .unwrap())
             } else if path.starts_with("/api/") {
-                Err(StatusCode::UNAUTHORIZED)
+                Ok(Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(r#"{"error":"Authentication required"}"#))
+                    .unwrap())
             } else {
                 Ok(next.run(request).await)
             }
