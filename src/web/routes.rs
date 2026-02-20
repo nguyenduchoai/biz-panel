@@ -27,6 +27,7 @@ pub fn ui_routes() -> Router {
         .route("/php", get(page_shell))
         .route("/services", get(page_shell))
         .route("/settings", get(page_shell))
+        .route("/backups", get(page_shell))
         .route("/projects", get(page_shell))
 }
 
@@ -282,6 +283,7 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
                 <a href="/ssl" class="nav-item"><span class="nav-icon">🔒</span><span class="nav-label">SSL</span></a>
 
                 <div class="nav-section">System</div>
+                <a href="/backups" class="nav-item"><span class="nav-icon">💾</span><span class="nav-label">Backups</span></a>
                 <a href="/logs" class="nav-item"><span class="nav-icon">📋</span><span class="nav-label">Logs</span></a>
                 <a href="/cron" class="nav-item"><span class="nav-icon">⏰</span><span class="nav-label">Cron Jobs</span></a>
                 <a href="/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></a>

@@ -352,27 +352,98 @@ function renderLogsPage(sources) {
         </div>`;
 }
 
-function renderSoftwarePage(software) {
-    const list = Array.isArray(software) ? software : [];
-    return `
-        <div class="page-header"><h2>📦 Software</h2></div>
-        <div class="service-grid">
-            ${list.map(s => `
-                <div class="service-card">
-                    <div class="service-card-header">
-                        <span class="service-card-icon">${s.icon}</span>
-                        <div class="service-card-info">
-                            <div class="service-card-name">${s.name}</div>
-                            <div class="service-card-desc">${s.category}${s.version ? ' • v' + s.version : ''}</div>
-                        </div>
-                        ${s.installed ? '<span class="tag tag-green">Installed</span>' : '<span class="tag tag-yellow">Not installed</span>'}
-                    </div>
-                    <div class="service-card-actions">
-                        ${!s.installed ? `<button class="btn btn-primary btn-sm" onclick="installSW('${s.id}')">Install</button>` : `<button class="btn btn-danger btn-sm" onclick="uninstallSW('${s.id}')">Uninstall</button>`}
-                    </div>
-                </div>
-            `).join('')}
+function renderBackupsPage(backups, rcloneConfig) {
+    const list = Array.isArray(backups) ? backups : [];
+    
+    let cloudStatus = '';
+    if (!rcloneConfig?.installed) {
+        cloudStatus = `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; margin-bottom: 20px;">
+            ⚠️ <b>Rclone not installed</b>. Run <code>apt install rclone</code> and <code>rclone config</code> to enable Google Drive/S3 backups.
         </div>`;
+    } else if (!rcloneConfig?.remotes || rcloneConfig.remotes.length === 0) {
+        cloudStatus = `<div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; margin-bottom: 20px;">
+            ℹ️ <b>Cloud storage not configured</b>. Run <code>rclone config</code> in terminal to add Google Drive or S3, name the remote <code>gdrive</code>.
+        </div>`;
+    }
+
+    return `
+        <div class="page-header" style="justify-content: space-between;">
+            <h2>💾 Backup Management</h2>
+            <button class="btn btn-primary" onclick="showCreateBackupModal()">Create Backup</button>
+        </div>
+        ${cloudStatus}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>File Name</th>
+                        <th>Size</th>
+                        <th>Created</th>
+                        <th>Location</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.length === 0 ? '<tr><td colspan="6" style="text-align:center;padding:20px;">No backups found</td></tr>' : list.map(b => `
+                        <tr>
+                            <td><span class="tag tag-${b.type === 'Database' ? 'blue' : 'green'}">${b.type}</span></td>
+                            <td style="font-family: monospace;">${b.name}</td>
+                            <td>${formatBytes(b.size)}</td>
+                            <td>${new Date(b.created * 1000).toLocaleString()}</td>
+                            <td>${b.location}</td>
+                            <td>
+                                <a href="/api/files/download?path=/var/backups/biz-panel/${b.name}" class="btn btn-sm btn-primary">Download</a>
+                                <button class="btn btn-sm btn-danger" onclick="deleteBackup('${b.name}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function showCreateBackupModal() {
+    showModal('Create Backup', `
+        <div class="form-group">
+            <label>Backup Type</label>
+            <select id="backupType" class="form-control" onchange="document.getElementById('backupTarget').placeholder = this.value === 'website' ? 'example.com' : 'db_name'">
+                <option value="website">Website</option>
+                <option value="database">Database</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Target Name</label>
+            <input type="text" id="backupTarget" class="form-control" placeholder="example.com">
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="backupCloud" style="width:16px;height:16px;">
+            <label for="backupCloud" style="margin:0;">Upload to Cloud (Google Drive / S3)</label>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted)">* Cloud upload requires 'gdrive' remote configured in rclone</p>
+    `, async () => {
+        const type = document.getElementById('backupType').value;
+        const target = document.getElementById('backupTarget').value;
+        const cloud = document.getElementById('backupCloud').checked;
+        if (!target) { showToast('Target required', 'error'); return; }
+        
+        showToast('Starting backup...', 'info');
+        try {
+            const res = await postAPI('/api/backups', { type, target, cloud });
+            if (res.taskId) pollTask(res.taskId, 'Backup', document.getElementById('modalSubmit'));
+        } catch (err) {
+            showToast('Backup failed: ' + err.message, 'error');
+        }
+    });
+}
+
+async function deleteBackup(name) {
+    if (!confirm('Delete backup ' + name + '?')) return;
+    try {
+        await deleteAPI('/api/backups/' + name);
+        showToast('Backup deleted');
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) { showToast('Failed basic deletion', 'error'); }
 }
 
 function renderPHPPage(versions) {
@@ -1471,9 +1542,10 @@ async function loadPageContent(page) {
                     {label: 'Request SSL', action: 'requestSSL'}, {label: 'Self-Signed', action: 'selfSigned'}
                 ]);
                 break;
-            case 'software':
-                const sw = await fetchAPI('/api/software');
-                container.innerHTML = renderSoftwarePage(sw);
+            case 'backups':
+                const backupsInfo = await fetchAPI('/api/backups');
+                const rcloneConfig = await fetchAPI('/api/backups/cloud/config').catch(() => ({ installed: false, remotes: [] }));
+                container.innerHTML = renderBackupsPage(backupsInfo, rcloneConfig);
                 break;
             case 'php':
                 const phpVersions = await fetchAPI('/api/php/versions');

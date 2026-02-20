@@ -12,6 +12,7 @@ pub mod ssl;
 pub mod software;
 pub mod php;
 pub mod templates;
+pub mod backup;
 
 use axum::{
     middleware as axum_middleware,
@@ -126,6 +127,10 @@ fn protected_routes() -> Router {
         .route("/templates/categories", get(templates::get_categories))
         .route("/templates/{id}", get(templates::get_template))
         .route("/templates/{id}/deploy", post(templates::deploy_template))
+        // Backups
+        .route("/backups", get(backup::list_backups).post(backup::create_backup))
+        .route("/backups/{name}", delete(backup::delete_backup))
+        .route("/backups/cloud/config", get(backup::get_rclone_config))
         // Background Tasks
         .route("/tasks", get(tasks::list_tasks))
         .route("/tasks/{id}", get(tasks::get_task_status))
