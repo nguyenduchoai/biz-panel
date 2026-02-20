@@ -602,7 +602,7 @@ async function loadPageContent(page) {
 }
 
 // Auto-init: detect page and load when DOM is ready
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Auth check (skip for login page)
     if (!localStorage.getItem('biz_token') && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
@@ -630,4 +630,4 @@ async function loadPageContent(page) {
     if (path !== 'dashboard' && path !== '' && document.getElementById('dynamicContent')) {
         loadPageContent(path);
     }
-})();
+});
