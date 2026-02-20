@@ -860,3 +860,52 @@ body {
 
 /* Data table wrapper overflow */
 .data-table-wrapper { overflow-x: auto; }
+
+/* ========== DIRECTORY BROWSER ========== */
+.dir-browser {
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.dir-browser-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    gap: 8px;
+}
+
+.dir-browser-path {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0; overflow: hidden;
+}
+
+.dir-browser-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.dir-browser-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.dir-browser-item:last-child { border-bottom: none; }
+
+.dir-browser-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.dir-icon { font-size: 16px; flex-shrink: 0; }
+.dir-name {
+    font-family: var(--font-mono); font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

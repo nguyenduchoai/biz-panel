@@ -765,11 +765,15 @@ volumes:
             <div id="compose-dir-panel" style="display:none">
                 <div class="form-group">
                     <label>Directory Path</label>
-                    <input type="text" id="compose-directory" placeholder="/home/user/my-project">
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="compose-directory" placeholder="/home/user/my-project" style="flex:1">
+                        <button type="button" class="btn btn-secondary" onclick="openDirBrowser('compose-directory')" style="white-space:nowrap">📁 Browse</button>
+                    </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">
-                        Directory phải chứa file <code style="color:var(--text-secondary)">docker-compose.yml</code> hoặc <code style="color:var(--text-secondary)">compose.yml</code>
+                        Directory phải chứa file <code>docker-compose.yml</code> hoặc <code>compose.yml</code>
                     </div>
                 </div>
+                <div id="dir-browser-compose-directory" class="dir-browser" style="display:none"></div>
             </div>
         </div>
     `, deployCompose);
@@ -856,6 +860,66 @@ async function createDockerNetwork() {
     } catch (err) {
         showToast('Failed: ' + (err.message || err), 'error');
     }
+}
+
+// ===== DIRECTORY BROWSER =====
+async function openDirBrowser(targetInputId, startPath) {
+    const browserEl = document.getElementById('dir-browser-' + targetInputId);
+    if (!browserEl) return;
+
+    // Toggle visibility
+    if (browserEl.style.display !== 'none' && !startPath) {
+        browserEl.style.display = 'none';
+        return;
+    }
+
+    const currentPath = startPath || document.getElementById(targetInputId)?.value?.trim() || '/';
+    browserEl.style.display = 'block';
+    browserEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px">Loading...</div>';
+
+    try {
+        const entries = await fetchAPI('/api/files?path=' + encodeURIComponent(currentPath));
+        const list = Array.isArray(entries) ? entries : [];
+        const dirs = list.filter(e => e.isDir);
+        const composeFiles = list.filter(e => !e.isDir && ['docker-compose.yml','docker-compose.yaml','compose.yml','compose.yaml'].includes(e.name));
+
+        browserEl.innerHTML = `
+            <div class="dir-browser-header">
+                <div class="dir-browser-path">
+                    <span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">Path:</span>
+                    <span style="font-family:var(--font-mono);font-size:13px">${currentPath}</span>
+                </div>
+                <div style="display:flex;gap:6px">
+                    ${composeFiles.length > 0 ? `<span class="tag tag-green" style="font-size:11px">✓ compose found</span>` : ''}
+                    <button class="btn btn-sm btn-primary" onclick="selectDir('${targetInputId}','${currentPath.replace(/'/g, "\\'")}')">✓ Select</button>
+                </div>
+            </div>
+            <div class="dir-browser-list">
+                ${currentPath !== '/' ? `
+                    <div class="dir-browser-item" onclick="openDirBrowser('${targetInputId}','${currentPath.replace(/\/[^/]*\/?$/, '') || '/'}')">
+                        <span class="dir-icon">↩</span>
+                        <span class="dir-name">..</span>
+                    </div>
+                ` : ''}
+                ${dirs.map(d => `
+                    <div class="dir-browser-item" onclick="openDirBrowser('${targetInputId}','${d.path.replace(/'/g, "\\'")}')">
+                        <span class="dir-icon">📁</span>
+                        <span class="dir-name">${d.name}</span>
+                    </div>
+                `).join('')}
+                ${dirs.length === 0 ? '<div style="padding:8px 12px;color:var(--text-muted);font-size:12px">Empty directory</div>' : ''}
+            </div>
+        `;
+    } catch (err) {
+        browserEl.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:13px">Error: ${err.message || err}</div>`;
+    }
+}
+
+function selectDir(targetInputId, path) {
+    const input = document.getElementById(targetInputId);
+    if (input) input.value = path;
+    const browserEl = document.getElementById('dir-browser-' + targetInputId);
+    if (browserEl) browserEl.style.display = 'none';
 }
 
 async function installService(id) { showToast('Installing ' + id + '...', 'info'); const res = await postAPI(`/api/services/${id}/install`); showToast(res.message || 'Installed'); setTimeout(() => location.reload(), 2000); }
