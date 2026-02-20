@@ -152,3 +152,48 @@ async fn handle_metrics_ws(mut socket: WebSocket) {
         }
     }
 }
+
+pub async fn get_metrics_history() -> impl IntoResponse {
+    let conn = crate::models::db::get_conn();
+    let conn = conn.lock();
+    // Return last 288 points (24 hours at 5 min intervals)
+    let mut stmt = conn.prepare("SELECT timestamp, cpu_usage, mem_used, mem_total, disk_used, disk_total, net_sent, net_recv, load_one FROM metrics_history ORDER BY timestamp DESC LIMIT 288").unwrap();
+    let iter = stmt.query_map([], |row| {
+        Ok(json!({
+            "timestamp": row.get::<_, i64>(0)?,
+            "cpu_usage": row.get::<_, f64>(1)?,
+            "mem_used": row.get::<_, i64>(2)?,
+            "mem_total": row.get::<_, i64>(3)?,
+            "disk_used": row.get::<_, i64>(4)?,
+            "disk_total": row.get::<_, i64>(5)?,
+            "net_sent": row.get::<_, i64>(6)?,
+            "net_recv": row.get::<_, i64>(7)?,
+            "load_one": row.get::<_, f64>(8)?,
+        }))
+    }).unwrap();
+
+    let mut history: Vec<serde_json::Value> = iter.filter_map(|r| r.ok()).collect();
+    history.reverse(); // oldest first
+    Json(json!(history))
+}
+
+pub fn start_history_logger() {
+    tokio::spawn(async {
+        let mut interval = tokio::time::interval(Duration::from_secs(300)); // Every 5 minutes
+        loop {
+            interval.tick().await;
+            if let Ok(m) = collect_metrics() {
+                let conn = crate::models::db::get_conn();
+                let conn = conn.lock();
+                let now = chrono::Utc::now().timestamp();
+                conn.execute(
+                    "INSERT INTO metrics_history (timestamp, cpu_usage, mem_used, mem_total, disk_used, disk_total, net_sent, net_recv, load_one) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    rusqlite::params![now, m.cpu.usage, m.memory.used as i64, m.memory.total as i64, m.disk.used as i64, m.disk.total as i64, m.network.bytes_sent as i64, m.network.bytes_recv as i64, m.load_avg[0]],
+                ).ok();
+                
+                // Cleanup old records (keep 7 days = 2016 records at 5m interval)
+                conn.execute("DELETE FROM metrics_history WHERE timestamp < ?1", rusqlite::params![now - 7 * 24 * 3600]).ok();
+            }
+        }
+    });
+}

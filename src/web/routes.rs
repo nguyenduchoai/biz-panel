@@ -28,6 +28,7 @@ pub fn ui_routes() -> Router {
         .route("/services", get(page_shell))
         .route("/settings", get(page_shell))
         .route("/backups", get(page_shell))
+        .route("/monitoring", get(page_shell))
         .route("/projects", get(page_shell))
 }
 
@@ -265,6 +266,7 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
             </div>
             <div class="sidebar-nav">
                 <a href="/" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></a>
+                <a href="/monitoring" class="nav-item"><span class="nav-icon">📈</span><span class="nav-label">Monitoring</span></a>
 
                 <div class="nav-section">Server</div>
                 <a href="/websites" class="nav-item"><span class="nav-icon">🌐</span><span class="nav-label">Websites</span></a>

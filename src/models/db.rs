@@ -102,6 +102,19 @@ pub fn init_db(path: &str) {
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS metrics_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            cpu_usage REAL NOT NULL,
+            mem_used INTEGER NOT NULL,
+            mem_total INTEGER NOT NULL,
+            disk_used INTEGER NOT NULL,
+            disk_total INTEGER NOT NULL,
+            net_sent INTEGER NOT NULL,
+            net_recv INTEGER NOT NULL,
+            load_one REAL NOT NULL
+        );
         ",
     )
     .expect("Failed to create tables");

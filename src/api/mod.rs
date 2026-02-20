@@ -13,6 +13,7 @@ pub mod software;
 pub mod php;
 pub mod templates;
 pub mod backup;
+pub mod audit;
 
 use axum::{
     middleware as axum_middleware,
@@ -39,6 +40,7 @@ fn protected_routes() -> Router {
         // System metrics
         .route("/metrics", get(metrics::get_system_metrics))
         .route("/metrics/ws", get(metrics::metrics_websocket))
+        .route("/metrics/history", get(metrics::get_metrics_history))
         // Websites
         .route("/websites", get(handlers::list_websites).post(handlers::create_website))
         .route("/websites/{id}", delete(handlers::delete_website))
@@ -49,9 +51,10 @@ fn protected_routes() -> Router {
         .route("/crons", get(handlers::list_cronjobs).post(handlers::create_cronjob))
         .route("/crons/{id}", put(handlers::update_cronjob).delete(handlers::delete_cronjob))
         .route("/crons/{id}/run", post(handlers::run_cronjob))
-        // Firewall
+        // Firewall & Security Audit
         .route("/firewall/rules", get(handlers::list_firewall_rules).post(handlers::create_firewall_rule))
         .route("/firewall/rules/{id}", delete(handlers::delete_firewall_rule))
+        .route("/security/audit", get(audit::run_security_audit))
         // Settings
         .route("/settings", get(handlers::get_settings).put(handlers::update_settings))
         // Activities
@@ -112,6 +115,7 @@ fn protected_routes() -> Router {
         .route("/php/versions/{version}/uninstall", post(php::uninstall_version))
         .route("/php/versions/{version}/extensions", get(php::get_extensions))
         .route("/php/versions/{version}/extensions/{ext}/install", post(php::install_extension))
+        .route("/php/versions/{version}/extensions/{ext}/uninstall", post(php::uninstall_extension))
         .route("/php/versions/{version}/config", get(php::get_config).put(php::update_config))
         .route("/php/versions/{version}/{action}", post(php::control_fpm))
         // Services

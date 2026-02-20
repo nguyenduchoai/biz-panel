@@ -100,6 +100,9 @@ async fn start_server(port: u16, config_path: &str) {
     // Initialize database
     models::db::init_db(&cfg.database.path);
 
+    // Start background metrics history logger
+    api::metrics::start_history_logger();
+
     // CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)

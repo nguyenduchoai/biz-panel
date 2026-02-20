@@ -463,7 +463,8 @@ function renderPHPPage(versions) {
                     </div>
                     <div class="service-card-actions">
                         ${!v.installed ? `<button class="btn btn-primary btn-sm" onclick="installPHP('${v.version}')">Install</button>` :
-                            `<button class="btn btn-success btn-sm" onclick="phpAction('${v.version}','start')">Start</button>
+                            `<button class="btn btn-sm" onclick="managePHPExtensions('${v.version}')" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db">Plug-ins</button>
+                             <button class="btn btn-success btn-sm" onclick="phpAction('${v.version}','start')">Start</button>
                              <button class="btn btn-sm" onclick="phpAction('${v.version}','restart')" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)">Restart</button>
                              <button class="btn btn-danger btn-sm" onclick="uninstallPHP('${v.version}')">Uninstall</button>`}
                     </div>
@@ -493,6 +494,78 @@ function renderAppStore(templates) {
                 </div>
             `).join('')}
         </div>`;
+}
+
+function renderMonitoringPage(history) {
+    if (!history || history.length === 0) {
+        return `<div class="page-header"><h2>📈 Monitoring History</h2></div>
+                <div class="card"><div class="card-body">No history data available yet. Please wait 5 minutes for the background logger to collect data.</div></div>`;
+    }
+    return `
+        <div class="page-header"><h2>📈 Monitoring History (Last 24 Hours)</h2></div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+            <div class="card">
+                <div class="card-header"><h3>CPU Usage (%)</h3></div>
+                <div class="card-body" style="height: 300px;"><canvas id="chartCpu"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Load Average (1m)</h3></div>
+                <div class="card-body" style="height: 300px;"><canvas id="chartLoad"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Memory Usage (MB)</h3></div>
+                <div class="card-body" style="height: 300px;"><canvas id="chartMem"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Network I/O (KB/s)</h3></div>
+                <div class="card-body" style="height: 300px;"><canvas id="chartNet"></canvas></div>
+            </div>
+        </div>
+    `;
+}
+
+function initMonitoringCharts(history) {
+    // Dynamic load Chart.js
+    if (!window.Chart) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => drawCharts(history);
+        document.head.appendChild(script);
+    } else {
+        drawCharts(history);
+    }
+}
+
+function drawCharts(history) {
+    const labels = history.map(h => {
+        const d = new Date(h.timestamp * 1000);
+        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    });
+
+    const cpuData = history.map(h => h.cpu_usage.toFixed(1));
+    const loadData = history.map(h => h.load_one.toFixed(2));
+    const memData = history.map(h => (h.mem_used / 1024 / 1024).toFixed(0)); // MB
+    
+    // Calculate network diff per second (approx)
+    let netSent = [], netRecv = [];
+    for(let i=0; i<history.length; i++) {
+        if(i===0) { netSent.push(0); netRecv.push(0); }
+        else {
+            let dt = history[i].timestamp - history[i-1].timestamp;
+            if(dt === 0) dt = 1;
+            let ds = (history[i].net_sent - history[i-1].net_sent) / 1024 / dt;
+            let dr = (history[i].net_recv - history[i-1].net_recv) / 1024 / dt;
+            netSent.push(ds < 0 ? 0 : ds.toFixed(1));
+            netRecv.push(dr < 0 ? 0 : dr.toFixed(1));
+        }
+    }
+
+    const commonOpts = { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } };
+
+    new Chart(document.getElementById('chartCpu'), { type: 'line', data: { labels, datasets: [{ label: 'CPU %', data: cpuData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+    new Chart(document.getElementById('chartLoad'), { type: 'line', data: { labels, datasets: [{ label: 'Load 1m', data: loadData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+    new Chart(document.getElementById('chartMem'), { type: 'line', data: { labels, datasets: [{ label: 'Mem Used (MB)', data: memData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+    new Chart(document.getElementById('chartNet'), { type: 'line', data: { labels, datasets: [{ label: 'Out (KB/s)', data: netSent, borderColor: '#ef4444', tension: 0.4, pointRadius: 0 }, { label: 'In (KB/s)', data: netRecv, borderColor: '#8b5cf6', tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
 }
 
 function renderSettingsPage(settings) {
@@ -1291,6 +1364,60 @@ async function uninstallPHP(v) {
 }
 async function phpAction(v, action) { await postAPI(`/api/php/versions/${v}/${action}`, {}); showToast(`PHP-FPM ${action}`); setTimeout(() => location.reload(), 1000); }
 
+async function managePHPExtensions(version) {
+    showToast('Loading PHP ' + version + ' extensions...', 'info');
+    try {
+        const exts = await fetchAPI(`/api/php/versions/${version}/extensions`);
+        const rowsHtml = exts.map(e => `
+            <tr>
+                <td><strong>${e.name}</strong></td>
+                <td>${e.installed ? '<span class="tag tag-green">Installed</span>' : '<span class="tag tag-yellow">Not Installed</span>'}</td>
+                <td style="text-align:right;">
+                    ${e.installed ? 
+                        `<button class="btn btn-sm btn-danger" onclick="uninstallPHPExtension('${version}', '${e.name}', this)">Uninstall</button>` : 
+                        `<button class="btn btn-sm btn-primary" onclick="installPHPExtension('${version}', '${e.name}', this)">Install</button>`
+                    }
+                </td>
+            </tr>
+        `).join('');
+
+        showModal(`PHP ${version} Extensions`, `
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead><tr><th>Extension Name</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+            <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Installations run in background. Refresh table after completion.</p>
+        `, () => {}); // No submit action, handled by buttons inline
+    } catch (err) {
+        showToast('Failed to load extensions: ' + err.message, 'error');
+    }
+}
+
+async function installPHPExtension(version, ext, btn) {
+    btn.disabled = true; btn.textContent = 'Installing...';
+    try {
+        const res = await postAPI(`/api/php/versions/${version}/extensions/${ext}/install`, {});
+        if(res.taskId) pollTask(res.taskId, 'Install', btn);
+    } catch (err) {
+        showToast('Install failed: ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Install';
+    }
+}
+
+async function uninstallPHPExtension(version, ext, btn) {
+    if(!confirm('Uninstall ' + ext + ' from PHP ' + version + '?')) return;
+    btn.disabled = true; btn.textContent = 'Removing...';
+    try {
+        const res = await postAPI(`/api/php/versions/${version}/extensions/${ext}/uninstall`, {});
+        if(res.taskId) pollTask(res.taskId, 'Uninstall', btn);
+    } catch (err) {
+        showToast('Uninstall failed: ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Uninstall';
+    }
+}
+
 async function deployApp(id) {
     const btn = event?.target;
     if (btn) { btn.disabled = true; btn.textContent = 'Deploying...'; }
@@ -1465,6 +1592,39 @@ function selfSigned() {
     });
 }
 
+async function runSecurityAudit() {
+    showToast('Running security audit...', 'info');
+    document.querySelector('.btn-warning').disabled = true;
+    try {
+        const audit = await fetchAPI('/api/security/audit');
+        if (audit.error) throw new Error(audit.error);
+        
+        const passedHtml = audit.passed.map(m => `<div style="color:#10b981; margin-bottom:5px;">✅ ${m}</div>`).join('');
+        const warningsHtml = audit.warnings.map(m => `<div style="color:#ef4444; margin-bottom:5px;">❌ ${m}</div>`).join('');
+        
+        let gradeColor = audit.score >= 80 ? '#10b981' : (audit.score >= 50 ? '#f59e0b' : '#ef4444');
+
+        showModal('Security Audit Results', `
+            <div style="text-align:center; margin-bottom: 20px;">
+                <h1 style="color:${gradeColor}; font-size:48px; margin:0;">${audit.score}/100</h1>
+                <p style="color:var(--text-muted);">${audit.timestamp}</p>
+            </div>
+            <div class="card" style="margin-bottom: 10px; border-left: 3px solid #ef4444;">
+                <div class="card-header"><h3 style="margin:0;">Warnings (${audit.warnings.length})</h3></div>
+                <div class="card-body">${warningsHtml || '<div style="color:var(--text-muted)">No warnings. Good job!</div>'}</div>
+            </div>
+            <div class="card" style="border-left: 3px solid #10b981;">
+                <div class="card-header"><h3 style="margin:0;">Passed Checks (${audit.passed.length})</h3></div>
+                <div class="card-body">${passedHtml || '<div style="color:var(--text-muted)">None</div>'}</div>
+            </div>
+        `, () => {});
+    } catch(err) {
+        showToast('Audit failed: ' + err.message, 'error');
+    } finally {
+        document.querySelector('.btn-warning').disabled = false;
+    }
+}
+
 // ========== NAVIGATION ==========
 
 function toggleSidebar() {
@@ -1487,6 +1647,12 @@ async function loadPageContent(page) {
 
     try {
         switch(page) {
+            case 'monitoring':
+                container.innerHTML = '<div class="loading-spinner">Loading history...</div>';
+                const history = await fetchAPI('/api/metrics/history');
+                container.innerHTML = renderMonitoringPage(history);
+                if (history.length > 0) initMonitoringCharts(history);
+                break;
             case 'websites':
                 const sites = await fetchAPI('/api/websites');
                 container.innerHTML = renderTable('Websites', '🌐', sites, ['id','domain','engine','status'], [
@@ -1532,7 +1698,11 @@ async function loadPageContent(page) {
                 break;
             case 'security':
                 const rules = await fetchAPI('/api/firewall/rules');
-                container.innerHTML = renderTable('Firewall Rules', '🛡️', rules, ['id','port','protocol','action','description'], [
+                container.innerHTML = `
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:15px;">
+                        <button class="btn btn-warning" onclick="runSecurityAudit()" style="background:#f59e0b;color:#fff;border:none;">🔍 Run Security Audit</button>
+                    </div>
+                ` + renderTable('Firewall Rules', '🛡️', rules, ['id','port','protocol','action','description'], [
                     {label: 'Add Rule', action: 'addFirewallRule'}
                 ]);
                 break;

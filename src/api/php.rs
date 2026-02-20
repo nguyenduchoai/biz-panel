@@ -65,7 +65,12 @@ pub async fn control_fpm(Path((version, action)): Path<(String, String)>) -> imp
 pub async fn get_extensions(Path(version): Path<String>) -> impl IntoResponse {
     let output = Command::new("php").args([&format!("-d error_reporting=0"), "-m"]).output();
     let installed: Vec<String> = output.map(|o| String::from_utf8_lossy(&o.stdout).lines().map(String::from).collect()).unwrap_or_default();
-    let common_exts = ["curl","gd","intl","mbstring","mysql","xml","zip","bcmath","imagick","redis","soap","ldap","pgsql","sqlite3","opcache"];
+    
+    // Expanded list including OPcache, Memcached, Redis, MongoDB, Swoole like aaPanel
+    let common_exts = ["curl","gd","intl","mbstring","mysql","xml","zip","bcmath","imagick",
+                       "redis","memcached","mongodb","swoole","soap","ldap","pgsql","sqlite3",
+                       "opcache","igbinary","msgpack","ssh2","gmp","yaml","uuid"];
+                       
     let exts: Vec<serde_json::Value> = common_exts.iter().map(|e| {
         let is_installed = installed.iter().any(|i| i.to_lowercase() == e.to_lowercase());
         json!({"name": e, "installed": is_installed, "version": version})
@@ -83,6 +88,18 @@ pub async fn install_extension(Path((version, ext)): Path<(String, String)>) -> 
         Some(&post),
     );
     Json(json!({"taskId": task_id, "status": "installing", "message": format!("{} installation started", pkg)}))
+}
+
+pub async fn uninstall_extension(Path((version, ext)): Path<(String, String)>) -> impl IntoResponse {
+    use super::tasks;
+    let pkg = format!("php{}-{}", version, ext);
+    let post = format!("systemctl restart php{}-fpm", version);
+    let task_id = tasks::spawn_task_with_post(
+        &format!("Uninstall {}", pkg),
+        &format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {}", pkg),
+        Some(&post),
+    );
+    Json(json!({"taskId": task_id, "status": "uninstalling", "message": format!("{} uninstallation started", pkg)}))
 }
 
 pub async fn get_config(Path(version): Path<String>) -> impl IntoResponse {
