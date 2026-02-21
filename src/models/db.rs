@@ -115,6 +115,18 @@ pub fn init_db(path: &str) {
             net_recv INTEGER NOT NULL,
             load_one REAL NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS nodes (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            ip TEXT NOT NULL,
+            port INTEGER DEFAULT 22,
+            auth_key TEXT NOT NULL,
+            status TEXT DEFAULT 'installing',
+            os TEXT,
+            specs TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
         ",
     )
     .expect("Failed to create tables");

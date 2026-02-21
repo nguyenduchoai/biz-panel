@@ -261,34 +261,29 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-brand">
                 <span class="brand-icon">⚡</span>
-                <span class="brand-text">Biz-Panel</span>
-                <span class="brand-version">v2.0</span>
+                <span class="brand-text">Biz-SaaS</span>
+                <span class="brand-version" style="background:var(--success-bg);color:var(--success);border-radius:4px;padding:2px 6px;font-size:10px;">MASTER</span>
             </div>
             <div class="sidebar-nav">
-                <a href="/" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></a>
-                <a href="/monitoring" class="nav-item"><span class="nav-icon">📈</span><span class="nav-label">Monitoring</span></a>
+                <div style="padding: 10px 16px; margin-bottom: 8px;">
+                    <a href="/servers" class="login-btn" style="text-decoration:none; display:flex; justify-content:center; background: var(--gradient-brand); color:#fff; border:none;">
+                        🔗 Kết Nối Máy Chủ Mới
+                    </a>
+                </div>
+                
+                <a href="/" class="nav-item" data-page="dashboard"><span class="nav-icon">🖥️</span><span class="nav-label">Máy Chủ</span><span style="margin-left:auto;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:12px;font-size:11px;">5</span></a>
+                <a href="/websites" class="nav-item"><span class="nav-icon">🌐</span><span class="nav-label">Website</span><span style="margin-left:auto;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:12px;font-size:11px;">12</span></a>
+                <a href="/backups" class="nav-item"><span class="nav-icon">☁️</span><span class="nav-label">Sao Lưu</span></a>
+                <a href="/events" class="nav-item"><span class="nav-icon">📡</span><span class="nav-label">Sự Kiện</span></a>
+                <a href="/scripts" class="nav-item"><span class="nav-icon">📜</span><span class="nav-label">Scripts</span></a>
 
-                <div class="nav-section">Server</div>
-                <a href="/websites" class="nav-item"><span class="nav-icon">🌐</span><span class="nav-label">Websites</span></a>
-                <a href="/databases" class="nav-item"><span class="nav-icon">🗄️</span><span class="nav-label">Databases</span></a>
-                <a href="/docker" class="nav-item"><span class="nav-icon">🐳</span><span class="nav-label">Docker</span></a>
-                <a href="/files" class="nav-item"><span class="nav-icon">📁</span><span class="nav-label">Files</span></a>
-                <a href="/terminal" class="nav-item"><span class="nav-icon">💻</span><span class="nav-label">Terminal</span></a>
-
-                <div class="nav-section">Services</div>
-                <a href="/services" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Services</span></a>
-                <a href="/php" class="nav-item"><span class="nav-icon">🐘</span><span class="nav-label">PHP</span></a>
-                <a href="/appstore" class="nav-item"><span class="nav-icon">🛒</span><span class="nav-label">App Store</span></a>
-
-                <div class="nav-section">Security</div>
-                <a href="/security" class="nav-item"><span class="nav-icon">🛡️</span><span class="nav-label">Firewall</span></a>
-                <a href="/ssl" class="nav-item"><span class="nav-icon">🔒</span><span class="nav-label">SSL</span></a>
-
-                <div class="nav-section">System</div>
-                <a href="/backups" class="nav-item"><span class="nav-icon">💾</span><span class="nav-label">Backups</span></a>
-                <a href="/logs" class="nav-item"><span class="nav-icon">📋</span><span class="nav-label">Logs</span></a>
-                <a href="/cron" class="nav-item"><span class="nav-icon">⏰</span><span class="nav-label">Cron Jobs</span></a>
-                <a href="/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></a>
+                <div class="nav-section">MANAGER</div>
+                <a href="/teams" class="nav-item"><span class="nav-icon">👥</span><span class="nav-label">Nhóm</span></a>
+                <a href="/providers" class="nav-item"><span class="nav-icon">🌩️</span><span class="nav-label">Nhà Cung Cấp</span></a>
+                <a href="/git" class="nav-item"><span class="nav-icon">🐙</span><span class="nav-label">Git</span></a>
+                <a href="/dns" class="nav-item"><span class="nav-icon">🌐</span><span class="nav-label">DNS</span></a>
+                <a href="/ssh" class="nav-item"><span class="nav-icon">🔑</span><span class="nav-label">SSH Keys</span></a>
+                <a href="/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Cài Đặt</span></a>
             </div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">↗ Sign out</button>
@@ -314,268 +309,52 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
 </html>"##;
 
 const DASHBOARD_CONTENT: &str = r##"
-<div class="quick-actions-bar" style="margin-bottom: 24px;">
-    <h3 style="margin-bottom:16px; font-size: 16px; color: var(--text-base); display:flex; align-items:center; gap:8px;">
-        <span style="font-size: 20px;">🚀</span> Quick Actions
+<div class="quick-actions-bar" style="margin-bottom: 24px; background: linear-gradient(135deg, #0e7490 0%, #083344 100%); border-radius: 12px; padding: 24px; position:relative; overflow:hidden;">
+    <h3 style="margin-bottom:8px; font-size: 20px; color: #fff; display:flex; align-items:center; gap:8px;">
+        <span style="font-size: 24px;">📦</span> Di chuyển từ Control Panel
     </h3>
-    <div class="qa-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-       <button class="qa-btn" onclick="document.querySelector('a[href=\'/websites\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
-           <span style="font-size: 24px; padding: 8px; background: rgba(56,189,248,0.1); border-radius: 8px; color: #38bdf8;">🌐</span>
-           Add New Website
-       </button>
-       <button class="qa-btn" onclick="document.querySelector('a[href=\'/databases\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
-           <span style="font-size: 24px; padding: 8px; background: rgba(16,185,129,0.1); border-radius: 8px; color: #10b981;">🗄️</span>
-           Create Database
-       </button>
-       <button class="qa-btn" onclick="document.querySelector('a[href=\'/security\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
-           <span style="font-size: 24px; padding: 8px; background: rgba(245,158,11,0.1); border-radius: 8px; color: #f59e0b;">🛡️</span>
-           Security Audit
-       </button>
-       <button class="qa-btn" onclick="document.querySelector('a[href=\'/appstore\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
-           <span style="font-size: 24px; padding: 8px; background: rgba(139,92,246,0.1); border-radius: 8px; color: #8b5cf6;">🛒</span>
-           Install 1-Click Apps
-       </button>
-    </div>
-    <style>
-        .qa-btn:hover { border-color: #555 !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    </style>
-</div>
-
-<div class="dashboard-grid">
-    <div class="stat-card" id="cpuCard">
-        <div class="stat-header">
-            <span class="stat-icon">🖥️</span>
-            <span class="stat-title">CPU Usage</span>
-        </div>
-        <div class="stat-value" id="cpuValue">—</div>
-        <div class="stat-bar"><div class="stat-bar-fill cpu-bar" id="cpuBar" style="width:0%"></div></div>
-        <div class="stat-detail" id="cpuDetail">Connecting...</div>
-    </div>
-    <div class="stat-card" id="memCard">
-        <div class="stat-header">
-            <span class="stat-icon">💾</span>
-            <span class="stat-title">Memory</span>
-        </div>
-        <div class="stat-value" id="memValue">—</div>
-        <div class="stat-bar"><div class="stat-bar-fill mem-bar" id="memBar" style="width:0%"></div></div>
-        <div class="stat-detail" id="memDetail">Connecting...</div>
-    </div>
-    <div class="stat-card" id="diskCard">
-        <div class="stat-header">
-            <span class="stat-icon">💿</span>
-            <span class="stat-title">Disk</span>
-        </div>
-        <div class="stat-value" id="diskValue">—</div>
-        <div class="stat-bar"><div class="stat-bar-fill disk-bar" id="diskBar" style="width:0%"></div></div>
-        <div class="stat-detail" id="diskDetail">Connecting...</div>
-    </div>
-    <div class="stat-card" id="uptimeCard">
-        <div class="stat-header">
-            <span class="stat-icon">⏱️</span>
-            <span class="stat-title">Uptime</span>
-        </div>
-        <div class="stat-value" id="uptimeValue">—</div>
-        <div class="stat-detail" id="uptimeDetail">Connecting...</div>
+    <p style="color: rgba(255,255,255,0.7); max-width: 600px; font-size: 14px;">Dễ dàng di chuyển trạng web và cơ sở dữ liệu từ CyberPanel / aaPanel sang Biz-SaaS chỉ với 1 click chuột.</p>
+    <div style="position:absolute; right: 24px; top: 50%; transform: translateY(-50%); display:flex; gap: 12px;">
+       <button style="padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 8px; cursor: pointer;">⚡ CyberPanel</button>
+       <button style="padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 8px; cursor: pointer;">🐘 aaPanel</button>
     </div>
 </div>
 
-<div class="dashboard-row">
-    <div class="chart-card">
-        <h3>CPU & Memory History</h3>
-        <canvas id="metricsChart" height="200"></canvas>
+<div class="card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+        <h2 style="font-size:24px; font-weight:600; color:var(--text-primary);">Máy chủ</h2>
+        <button class="login-btn" onclick="showAddNodeModal()" style="width:auto; padding: 10px 20px; background: var(--gradient-brand); color: #fff; border:none; display:flex; gap:8px;">
+            <span>➕</span> Tạo Máy Chủ
+        </button>
     </div>
-    <div class="chart-card">
-        <h3>Network Traffic</h3>
-        <canvas id="networkChart" height="200"></canvas>
-    </div>
-</div>
 
-<div class="dashboard-row" style="grid-template-columns: 1fr 1fr 1fr;">
-    <div class="info-card">
-        <h3>System Information</h3>
-        <div class="info-grid">
-            <div class="info-item"><span class="info-label">Hostname</span><span class="info-value" id="sysHostname">—</span></div>
-            <div class="info-item"><span class="info-label">OS</span><span class="info-value" id="sysOS">—</span></div>
-            <div class="info-item"><span class="info-label">CPU Model</span><span class="info-value" id="sysCPU">—</span></div>
-            <div class="info-item"><span class="info-label">CPU Cores</span><span class="info-value" id="sysCores">—</span></div>
-            <div class="info-item"><span class="info-label">Load Average</span><span class="info-value" id="sysLoad">—</span></div>
-            <div class="info-item"><span class="info-label">Panel</span><span class="info-value">Biz-Panel v2.0 🦀</span></div>
+    <div style="display:flex; justify-content:space-between; margin-bottom: 16px;">
+        <div style="font-size:13px; color:var(--text-muted);">Bộ lọc đang hoạt động: <span style="color:var(--text-primary)">Không có bộ lọc</span></div>
+        <div style="display:flex; gap:8px;">
+            <input type="text" placeholder="🔍 Tìm Kiếm" style="padding:8px 16px; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); outline:none;">
         </div>
     </div>
-    <div class="info-card">
-        <h3>Core Services</h3>
-        <div id="dashServiceStatus" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
-            <div class="loading-spinner">Connecting...</div>
-        </div>
-        <button onclick="document.querySelector('a[href=\'/services\']').click()" style="margin-top:16px; width:100%; border:none; background:transparent; color:#38bdf8; cursor:pointer; font-size:13px; font-weight:500;">View All Services &rarr;</button>
-    </div>
-    <div class="info-card">
-        <h3>Recent Activity</h3>
-        <div id="activityList" class="activity-list">
-            <div class="loading-spinner">Connecting...</div>
-        </div>
-    </div>
+
+    <table class="data-table" style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--border); color:var(--text-muted); font-size:13px;">
+                <th style="padding:12px 16px; width:40px;"><input type="checkbox"></th>
+                <th style="padding:12px 16px;">Tên Server</th>
+                <th style="padding:12px 16px;">IP Address</th>
+                <th style="padding:12px 16px;">Trạng thái</th>
+                <th style="padding:12px 16px;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="nodesTableBody">
+            <tr><td colspan="5" style="padding: 16px; text-align: center;">Đang tải dữ liệu...</td></tr>
+        </tbody>
+    </table>
 </div>
 
 <script>
-// Dashboard real-time metrics
-let metricsChart, networkChart;
-const cpuHistory = [], memHistory = [], netTxHistory = [], netRxHistory = [], labels = [];
-
-function initCharts() {
-    const ctx1 = document.getElementById('metricsChart');
-    const ctx2 = document.getElementById('networkChart');
-    if (!ctx1 || !ctx2) return;
-
-    const gridColor = 'rgba(255,255,255,0.04)';
-    const tickColor = '#52525b';
-
-    metricsChart = new Chart(ctx1, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'CPU %', data: cpuHistory, borderColor: '#ededed', backgroundColor: 'rgba(255,255,255,0.05)', fill: true, tension: 0.4, borderWidth: 1.5, pointRadius: 0 },
-                { label: 'Memory %', data: memHistory, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.05)', fill: true, tension: 0.4, borderWidth: 1.5, pointRadius: 0 },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: { intersect: false, mode: 'index' },
-            scales: {
-                y: { beginAtZero: true, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-                x: { grid: { color: gridColor }, ticks: { color: tickColor, maxTicksLimit: 8, font: { size: 11 } } }
-            },
-            plugins: { legend: { labels: { color: '#a1a1aa', font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' } } }
-        },
-    });
-
-    networkChart = new Chart(ctx2, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'TX (KB/s)', data: netTxHistory, borderColor: '#fbbf24', tension: 0.4, borderWidth: 1.5, pointRadius: 0 },
-                { label: 'RX (KB/s)', data: netRxHistory, borderColor: '#60a5fa', tension: 0.4, borderWidth: 1.5, pointRadius: 0 },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: { intersect: false, mode: 'index' },
-            scales: {
-                y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
-                x: { grid: { color: gridColor }, ticks: { color: tickColor, maxTicksLimit: 8, font: { size: 11 } } }
-            },
-            plugins: { legend: { labels: { color: '#a1a1aa', font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' } } }
-        },
-    });
-}
-
-let prevNetSent = 0, prevNetRecv = 0;
-
-function updateMetrics(data) {
-    const cpuEl = document.getElementById('cpuValue');
-    const cpuBar = document.getElementById('cpuBar');
-    const cpuDetail = document.getElementById('cpuDetail');
-    if (cpuEl) { cpuEl.textContent = data.cpu.usage.toFixed(1) + '%'; cpuBar.style.width = data.cpu.usage + '%'; cpuDetail.textContent = data.cpu.cores + ' cores · ' + data.cpu.model; }
-
-    const memPct = data.memory.usedPercent || ((data.memory.used / data.memory.total) * 100);
-    const memEl = document.getElementById('memValue');
-    const memBar = document.getElementById('memBar');
-    if (memEl) { memEl.textContent = memPct.toFixed(1) + '%'; memBar.style.width = memPct + '%'; document.getElementById('memDetail').textContent = formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total); }
-
-    const diskPct = data.disk.usedPercent || ((data.disk.used / data.disk.total) * 100);
-    const diskEl = document.getElementById('diskValue');
-    if (diskEl) { diskEl.textContent = diskPct.toFixed(1) + '%'; document.getElementById('diskBar').style.width = diskPct + '%'; document.getElementById('diskDetail').textContent = formatBytes(data.disk.used) + ' / ' + formatBytes(data.disk.total); }
-
-    const uptimeEl = document.getElementById('uptimeValue');
-    if (uptimeEl) { uptimeEl.textContent = formatUptime(data.uptime); document.getElementById('uptimeDetail').textContent = data.hostname; }
-
-    setEl('sysHostname', data.hostname);
-    setEl('sysOS', data.os + ' ' + data.platform);
-    setEl('sysCPU', data.cpu.model);
-    setEl('sysCores', data.cpu.cores);
-    if (data.loadAvg) setEl('sysLoad', data.loadAvg.map(v => v.toFixed(2)).join(', '));
-    setEl('sysNetTx', formatBytes(data.network.bytesSent));
-    setEl('sysNetRx', formatBytes(data.network.bytesRecv));
-
-    const now = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'});
-    labels.push(now);
-    cpuHistory.push(data.cpu.usage);
-    memHistory.push(memPct);
-
-    const txRate = prevNetSent > 0 ? (data.network.bytesSent - prevNetSent) / 1024 : 0;
-    const rxRate = prevNetRecv > 0 ? (data.network.bytesRecv - prevNetRecv) / 1024 : 0;
-    netTxHistory.push(Math.max(0, txRate));
-    netRxHistory.push(Math.max(0, rxRate));
-    prevNetSent = data.network.bytesSent;
-    prevNetRecv = data.network.bytesRecv;
-
-    if (labels.length > 30) { labels.shift(); cpuHistory.shift(); memHistory.shift(); netTxHistory.shift(); netRxHistory.shift(); }
-    if (metricsChart) { metricsChart.update('none'); }
-    if (networkChart) { networkChart.update('none'); }
-}
-
-function setEl(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
-
-function connectMetricsWS() {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${proto}//${location.host}/api/metrics/ws`);
-    ws.onmessage = (e) => { try { updateMetrics(JSON.parse(e.data)); } catch(err) {} };
-    ws.onclose = () => { setTimeout(connectMetricsWS, 3000); };
-    ws.onerror = () => { ws.close(); };
-}
-
-async function loadActivities() {
-    try {
-        const token = localStorage.getItem('biz_token');
-        const res = await fetch('/api/activities', { headers: { 'Authorization': `Bearer ${token}` } });
-        const data = await res.json();
-        const el = document.getElementById('activityList');
-        if (el && Array.isArray(data)) {
-            el.innerHTML = data.slice(0, 10).map(a => `
-                <div class="activity-item">
-                    <span class="activity-status ${a.status}">${a.status === 'success' ? '✅' : '❌'}</span>
-                    <div class="activity-info">
-                        <div class="activity-title">${a.title}</div>
-                        <div class="activity-desc">${a.description}</div>
-                    </div>
-                    <span class="activity-time">${new Date(a.timestamp).toLocaleTimeString()}</span>
-                </div>
-            `).join('') || '<div class="empty-state">No recent activity</div>';
-        }
-    } catch(e) {}
-}
-
-async function loadDashboardServices() {
-    try {
-        const token = localStorage.getItem('biz_token');
-        const res = await fetch('/api/services', { headers: { 'Authorization': `Bearer ${token}` } });
-        const data = await res.json();
-        const el = document.getElementById('dashServiceStatus');
-        if (el && Array.isArray(data)) {
-            const cores = ['Nginx', 'Docker', 'MariaDB', 'Node.js', 'Redis'];
-            const html = data.filter(s => cores.includes(s.name)).slice(0, 5).map(s => `
-                <div style="background: rgba(255,255,255,0.02); border: 1px solid #222; padding: 10px 12px; border-radius: 8px; display:flex; align-items:center; justify-content:space-between;">
-                   <div style="display:flex; align-items:center; gap:10px;">
-                     <span style="font-size:18px;">${s.icon || '⚙️'}</span>
-                     <span style="color:#ededed; font-size:13px; font-weight:500;">${s.name}</span>
-                   </div>
-                   <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:${s.installed ? (s.status==='running'?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)') : 'rgba(255,255,255,0.05)'}; color:${s.installed ? (s.status==='running'?'#10b981':'#f59e0b') : '#71717a'}">
-                       ${s.installed ? (s.status==='running'?'RUNNING':'STOPPED') : 'NOT INSTALLED'}
-                   </span>
-                </div>
-            `).join('');
-            el.innerHTML = html || '<div class="empty-state" style="padding:10px; font-size:13px;">No core services found</div>';
-        }
-    } catch(e) {}
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    initCharts();
-    connectMetricsWS();
-    loadActivities();
-    loadDashboardServices();
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('pageTitle').textContent = 'Quản lý Máy Chủ (SaaS Master)';
+    if (typeof loadNodes === 'function') loadNodes();
 });
 </script>
 "##;

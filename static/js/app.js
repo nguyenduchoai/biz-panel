@@ -1775,3 +1775,88 @@ document.addEventListener('DOMContentLoaded', function() {
         loadPageContent(path);
     }
 });
+
+// --- Node / Agent Management Functions ---
+function showAddNodeModal() {
+    showModal('Thêm Máy Chủ Mới', `
+        <div class="form-group">
+            <label>Tên Gợi Nhớ</label>
+            <input type="text" id="nodeName" class="form-control" placeholder="production-node-1">
+        </div>
+        <div class="form-group" style="display:flex; gap:12px;">
+            <div style="flex:1;">
+                <label>IP Máy Chủ</label>
+                <input type="text" id="nodeIp" class="form-control" placeholder="192.168.1.10">
+            </div>
+            <div style="width:100px;">
+                <label>SSH Port</label>
+                <input type="number" id="nodePort" class="form-control" value="22">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Mật Khẩu Root</label>
+            <input type="password" id="nodePass" class="form-control" placeholder="Nhập để Master tự cài qua SSH rỗng">
+            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">* Mật khẩu chỉ dùng để truy cập 1 lần và cài đặt Agent, TUYỆT ĐỐI KHÔNG LƯU LẠI trên Master!</p>
+        </div>
+    `, async () => {
+        const name = document.getElementById('nodeName').value;
+        const ip = document.getElementById('nodeIp').value;
+        const port = parseInt(document.getElementById('nodePort').value || 22);
+        const password = document.getElementById('nodePass').value;
+
+        if (!name || !ip) return showToast('Nhập thiếu thông tin', 'error');
+
+        showToast('Đang kết nối SSH để cài đặt...', 'info');
+        try {
+            const res = await postAPI('/api/nodes', { name, ip, port, password });
+            if (res.taskId) pollTask(res.taskId, 'Install Agent');
+            setTimeout(loadNodes, 2000); // Reload table
+        } catch(e) { showToast('Lỗi: ' + e.message, 'error'); }
+    });
+}
+
+async function loadNodes() {
+    const tbody = document.getElementById('nodesTableBody');
+    if(!tbody) return;
+    try {
+        const nodes = await fetchAPI('/api/nodes');
+        if(!nodes || nodes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Chưa có máy chủ nào. Bạn có thể nhấn [Tạo Máy Chủ]</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = nodes.map(n => `
+            <tr style="border-bottom: 1px solid var(--border); font-size:14px; transition: background 0.2s; cursor:pointer;" onmouseover="this.style.background='var(--bg-card-hover)'" onmouseout="this.style.background='transparent'">
+                <td style="padding:16px;"><input type="checkbox"></td>
+                <td style="padding:16px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="color:var(--text-muted)">☆</span>
+                        <div style="width:32px;height:32px;background:var(--info-bg);color:var(--info);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;">🖥️</div>
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#38bdf8;font-weight:500;">${n.name}</span>
+                            <span style="font-size:11px;color:var(--text-muted)">ID: ${n.id.substring(0,8)}</span>
+                        </div>
+                    </div>
+                </td>
+                <td style="padding:16px; font-family:var(--font-mono);">${n.ip}:${n.port} <span style="color:var(--text-muted);cursor:pointer;" onclick="navigator.clipboard.writeText('${n.ip}')">📋</span></td>
+                <td style="padding:16px;">
+                    <span class="badge" style="background:${n.status==='active'?'var(--success-bg)':'var(--warning-bg)'}; color:${n.status==='active'?'var(--success)':'var(--warning)'};">
+                        ${n.status === 'active' ? '✅ Online' : '⚙️ ' + n.status}
+                    </span>
+                </td>
+                <td style="padding:16px;">
+                    <button class="btn btn-sm btn-danger" onclick="deleteNode('${n.id}', '${n.name}')">🗑 Xóa</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {}
+}
+
+async function deleteNode(id, name) {
+    if(!confirm('Bạn có chắc chắn muốn xóa khỏi hệ thống quản lý máy chủ ' + name + '?')) return;
+    try {
+        await deleteAPI('/api/nodes/' + id);
+        showToast('Đã xóa máy chủ');
+        loadNodes();
+    } catch(e) { showToast('Xóa thất bại', 'error'); }
+}

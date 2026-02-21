@@ -14,6 +14,7 @@ pub mod php;
 pub mod templates;
 pub mod backup;
 pub mod audit;
+pub mod nodes;
 
 use axum::{
     middleware as axum_middleware,
@@ -41,6 +42,9 @@ fn protected_routes() -> Router {
         .route("/metrics", get(metrics::get_system_metrics))
         .route("/metrics/ws", get(metrics::metrics_websocket))
         .route("/metrics/history", get(metrics::get_metrics_history))
+        // Nodes (SaaS Agents)
+        .route("/nodes", get(nodes::list_nodes).post(nodes::add_node))
+        .route("/nodes/:id", delete(nodes::delete_node))
         // Websites
         .route("/websites", get(handlers::list_websites).post(handlers::create_website))
         .route("/websites/:id", delete(handlers::delete_website))
