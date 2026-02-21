@@ -64,6 +64,7 @@ pub async fn create_backup(Json(body): Json<serde_json::Value>) -> impl IntoResp
     let backup_type = body.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let target = body.get("target").and_then(|v| v.as_str()).unwrap_or("");
     let cloud = body.get("cloud").and_then(|v| v.as_bool()).unwrap_or(false);
+    let encrypt = body.get("encrypt").and_then(|v| v.as_bool()).unwrap_or(false);
 
     if target.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(json!({"error": "Target is required"}))).into_response();
@@ -74,16 +75,27 @@ pub async fn create_backup(Json(body): Json<serde_json::Value>) -> impl IntoResp
     let mut name = format!("Backup {} {}", backup_type, target);
     let mut file_path = String::new();
 
+    let secret = crate::config::get().auth.jwt_secret;
+
     match backup_type {
         "database" => {
-            file_path = format!("{}/db_{}_{}.sql.gz", BACKUP_DIR, target, timestamp);
-            // Defaulting to mariadb locally (change to pg_dump if needed)
-            cmd = format!("mysqldump --force --opt --events --routines --triggers --databases {} | gzip > {}", target, file_path);
+            if encrypt {
+                file_path = format!("{}/db_{}_{}.sql.gz.gpg", BACKUP_DIR, target, timestamp);
+                cmd = format!("mysqldump --force --opt --events --routines --triggers --databases {} | gzip | gpg --symmetric --cipher-algo AES256 --batch --passphrase '{}' -o {}", target, secret, file_path);
+            } else {
+                file_path = format!("{}/db_{}_{}.sql.gz", BACKUP_DIR, target, timestamp);
+                cmd = format!("mysqldump --force --opt --events --routines --triggers --databases {} | gzip > {}", target, file_path);
+            }
         }
         "website" => {
-            file_path = format!("{}/web_{}_{}.tar.gz", BACKUP_DIR, target.replace(".", "_"), timestamp);
             let site_dir = format!("/var/www/{}", target); // Simple path resolution
-            cmd = format!("tar -czf {} -C /var/www {}", file_path, target);
+            if encrypt {
+                file_path = format!("{}/web_{}_{}.tar.gz.gpg", BACKUP_DIR, target.replace(".", "_"), timestamp);
+                cmd = format!("tar -czf - -C /var/www {} | gpg --symmetric --cipher-algo AES256 --batch --passphrase '{}' -o {}", target, secret, file_path);
+            } else {
+                file_path = format!("{}/web_{}_{}.tar.gz", BACKUP_DIR, target.replace(".", "_"), timestamp);
+                cmd = format!("tar -czf {} -C /var/www {}", file_path, target);
+            }
             
             // Validate directory exists
             if !std::path::Path::new(&site_dir).exists() {
@@ -99,6 +111,10 @@ pub async fn create_backup(Json(body): Json<serde_json::Value>) -> impl IntoResp
         let rclone_cmd = format!(" && rclone copy {} gdrive:BizPanelBackups/{}", file_path, backup_type);
         cmd.push_str(&rclone_cmd);
         name.push_str(" (Cloud)");
+    }
+
+    if encrypt {
+        name.push_str(" (AES-256)");
     }
 
     let task_id = tasks::spawn_bash_task(&name, &cmd);

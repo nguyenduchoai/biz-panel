@@ -2,9 +2,12 @@
 
 pub mod middleware;
 
-use axum::{extract::Json, http::StatusCode, response::IntoResponse};
+use axum::{extract::Json, http::{StatusCode, HeaderMap}, response::IntoResponse};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use once_cell::sync::OnceCell;
+use once_cell::sync::{OnceCell, Lazy};
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Instant, Duration};
 use serde_json::json;
 
 use crate::config::Config;
@@ -19,6 +22,10 @@ struct AuthState {
     session_timeout: u64,
 }
 
+static RATE_LIMITER: Lazy<Mutex<HashMap<String, (usize, Instant)>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+const MAX_ATTEMPTS: usize = 5;
+const LOCKOUT_DURATION: Duration = Duration::from_secs(15 * 60); // 15 mins
+
 pub fn init(config: &Config) {
     AUTH_CONFIG
         .set(AuthState {
@@ -30,27 +37,53 @@ pub fn init(config: &Config) {
         .ok();
 }
 
-pub async fn login_handler(Json(req): Json<LoginRequest>) -> impl IntoResponse {
+pub async fn login_handler(headers: HeaderMap, Json(req): Json<LoginRequest>) -> impl IntoResponse {
     let auth = AUTH_CONFIG.get().expect("Auth not initialized");
 
-    // Verify username
-    if req.username != auth.admin_user {
+    let client_ip = headers
+        .get("CF-Connecting-IP")
+        .or_else(|| headers.get("X-Forwarded-For"))
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
+    {
+        let mut limiter = RATE_LIMITER.lock().unwrap();
+        if let Some((attempts, last_attempt)) = limiter.get(&client_ip) {
+            if *attempts >= MAX_ATTEMPTS && last_attempt.elapsed() < LOCKOUT_DURATION {
+                let remaining = (LOCKOUT_DURATION - last_attempt.elapsed()).as_secs() / 60;
+                return (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    Json(json!({"error": format!("Too many attempts. Mute for {} minutes.", remaining + 1)})),
+                );
+            }
+        }
+    }
+
+    let mut success = false;
+    if req.username == auth.admin_user {
+        if let Ok(true) = bcrypt::verify(&req.password, &auth.admin_pass_hash) {
+            success = true;
+        }
+    }
+
+    if !success {
+        let mut limiter = RATE_LIMITER.lock().unwrap();
+        let entry = limiter.entry(client_ip).or_insert((0, Instant::now()));
+        if entry.1.elapsed() > LOCKOUT_DURATION {
+            entry.0 = 0;
+        }
+        entry.0 += 1;
+        entry.1 = Instant::now();
+
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error": "Invalid credentials"})),
         );
     }
 
-    // Verify password
-    match bcrypt::verify(&req.password, &auth.admin_pass_hash) {
-        Ok(true) => {}
-        _ => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"error": "Invalid credentials"})),
-            );
-        }
-    }
+    // Login successful, reset rate limit
+    RATE_LIMITER.lock().unwrap().remove(&client_ip);
 
     // Create JWT token
     let now = chrono::Utc::now().timestamp() as usize;

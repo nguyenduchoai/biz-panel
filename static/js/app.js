@@ -420,16 +420,21 @@ function showCreateBackupModal() {
             <input type="checkbox" id="backupCloud" style="width:16px;height:16px;">
             <label for="backupCloud" style="margin:0;">Upload to Cloud (Google Drive / S3)</label>
         </div>
-        <p style="font-size:12px;color:var(--text-muted)">* Cloud upload requires 'gdrive' remote configured in rclone</p>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="backupEncrypt" style="width:16px;height:16px;" checked>
+            <label for="backupEncrypt" style="margin:0;">Enable AES-256 GPG Encryption <span style="font-size:12px;color:var(--success)">(Recommended)</span></label>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted)">* Cloud upload requires 'gdrive' remote configured in rclone<br>* Encrypted backups use your panel JWT Secret as the decryption key</p>
     `, async () => {
         const type = document.getElementById('backupType').value;
         const target = document.getElementById('backupTarget').value;
         const cloud = document.getElementById('backupCloud').checked;
+        const encrypt = document.getElementById('backupEncrypt').checked;
         if (!target) { showToast('Target required', 'error'); return; }
         
         showToast('Starting backup...', 'info');
         try {
-            const res = await postAPI('/api/backups', { type, target, cloud });
+            const res = await postAPI('/api/backups', { type, target, cloud, encrypt });
             if (res.taskId) pollTask(res.taskId, 'Backup', document.getElementById('modalSubmit'));
         } catch (err) {
             showToast('Backup failed: ' + err.message, 'error');

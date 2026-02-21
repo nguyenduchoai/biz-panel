@@ -15,6 +15,31 @@ pub struct Config {
     pub security: SecurityConfig,
     pub logging: LoggingConfig,
     pub features: FeaturesConfig,
+    #[serde(default)]
+    pub telegram: TelegramConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelegramConfig {
+    pub enabled: bool,
+    pub bot_token: String,
+    pub chat_id: String,
+    pub cpu_threshold: f64,
+    pub mem_threshold: f64,
+    pub disk_threshold: f64,
+}
+
+impl Default for TelegramConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bot_token: "".to_string(),
+            chat_id: "".to_string(),
+            cpu_threshold: 90.0,
+            mem_threshold: 90.0,
+            disk_threshold: 90.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,6 +139,7 @@ impl Default for Config {
                 terminal: true,
                 file_manager: true,
             },
+            telegram: TelegramConfig::default(),
         }
     }
 }

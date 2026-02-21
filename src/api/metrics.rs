@@ -178,11 +178,54 @@ pub async fn get_metrics_history() -> impl IntoResponse {
 }
 
 pub fn start_history_logger() {
+    static LAST_ALERT: once_cell::sync::Lazy<std::sync::Mutex<Option<std::time::Instant>>> = 
+        once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
+
     tokio::spawn(async {
         let mut interval = tokio::time::interval(Duration::from_secs(300)); // Every 5 minutes
         loop {
             interval.tick().await;
             if let Ok(m) = collect_metrics() {
+                // TELEGRAM ALERT CHECK
+                let cfg = crate::config::get().telegram;
+                if cfg.enabled {
+                    let mut alerts = Vec::new();
+                    if m.cpu.usage as f64 > cfg.cpu_threshold {
+                        alerts.push(format!("⚠️ CPU Usage High: {:.1}%", m.cpu.usage));
+                    }
+                    if m.memory.used_percent > cfg.mem_threshold {
+                        alerts.push(format!("⚠️ RAM Usage High: {:.1}%", m.memory.used_percent));
+                    }
+                    if m.disk.used_percent > cfg.disk_threshold {
+                        alerts.push(format!("⚠️ Disk Usage High: {:.1}%", m.disk.used_percent));
+                    }
+
+                    if !alerts.is_empty() {
+                        let mut can_send = false;
+                        {
+                            let mut last = LAST_ALERT.lock().unwrap();
+                            if last.is_none() || last.unwrap().elapsed() > std::time::Duration::from_secs(3600) {
+                                can_send = true;
+                                *last = Some(std::time::Instant::now());
+                            }
+                        }
+
+                        if can_send {
+                            let msg = format!("*Biz-Panel Alert* 🚨\nHost: {}\n\n{}", m.hostname, alerts.join("\n"));
+                            let bot_token = cfg.bot_token.clone();
+                            let chat_id = cfg.chat_id.clone();
+                            
+                            tokio::spawn(async move {
+                                let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
+                                let _ = reqwest::Client::new().post(&url).json(&serde_json::json!({
+                                    "chat_id": chat_id,
+                                    "text": msg
+                                })).send().await;
+                            });
+                        }
+                    }
+                }
+
                 let conn = crate::models::db::get_conn();
                 let conn = conn.lock();
                 let now = chrono::Utc::now().timestamp();

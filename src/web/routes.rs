@@ -314,6 +314,33 @@ const BASE_HTML: &str = r##"<!DOCTYPE html>
 </html>"##;
 
 const DASHBOARD_CONTENT: &str = r##"
+<div class="quick-actions-bar" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom:16px; font-size: 16px; color: var(--text-base); display:flex; align-items:center; gap:8px;">
+        <span style="font-size: 20px;">🚀</span> Quick Actions
+    </h3>
+    <div class="qa-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+       <button class="qa-btn" onclick="document.querySelector('a[href=\'/websites\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
+           <span style="font-size: 24px; padding: 8px; background: rgba(56,189,248,0.1); border-radius: 8px; color: #38bdf8;">🌐</span>
+           Add New Website
+       </button>
+       <button class="qa-btn" onclick="document.querySelector('a[href=\'/databases\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
+           <span style="font-size: 24px; padding: 8px; background: rgba(16,185,129,0.1); border-radius: 8px; color: #10b981;">🗄️</span>
+           Create Database
+       </button>
+       <button class="qa-btn" onclick="document.querySelector('a[href=\'/security\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
+           <span style="font-size: 24px; padding: 8px; background: rgba(245,158,11,0.1); border-radius: 8px; color: #f59e0b;">🛡️</span>
+           Security Audit
+       </button>
+       <button class="qa-btn" onclick="document.querySelector('a[href=\'/appstore\']').click()" style="padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--text-base); font-size: 15px; font-weight: 500; display:flex; flex-direction:column; align-items:flex-start; gap:8px; transition: all 0.2s;">
+           <span style="font-size: 24px; padding: 8px; background: rgba(139,92,246,0.1); border-radius: 8px; color: #8b5cf6;">🛒</span>
+           Install 1-Click Apps
+       </button>
+    </div>
+    <style>
+        .qa-btn:hover { border-color: #555 !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    </style>
+</div>
+
 <div class="dashboard-grid">
     <div class="stat-card" id="cpuCard">
         <div class="stat-header">
@@ -363,7 +390,7 @@ const DASHBOARD_CONTENT: &str = r##"
     </div>
 </div>
 
-<div class="dashboard-row">
+<div class="dashboard-row" style="grid-template-columns: 1fr 1fr 1fr;">
     <div class="info-card">
         <h3>System Information</h3>
         <div class="info-grid">
@@ -372,10 +399,15 @@ const DASHBOARD_CONTENT: &str = r##"
             <div class="info-item"><span class="info-label">CPU Model</span><span class="info-value" id="sysCPU">—</span></div>
             <div class="info-item"><span class="info-label">CPU Cores</span><span class="info-value" id="sysCores">—</span></div>
             <div class="info-item"><span class="info-label">Load Average</span><span class="info-value" id="sysLoad">—</span></div>
-            <div class="info-item"><span class="info-label">Network TX</span><span class="info-value" id="sysNetTx">—</span></div>
-            <div class="info-item"><span class="info-label">Network RX</span><span class="info-value" id="sysNetRx">—</span></div>
             <div class="info-item"><span class="info-label">Panel</span><span class="info-value">Biz-Panel v2.0 🦀</span></div>
         </div>
+    </div>
+    <div class="info-card">
+        <h3>Core Services</h3>
+        <div id="dashServiceStatus" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+            <div class="loading-spinner">Connecting...</div>
+        </div>
+        <button onclick="document.querySelector('a[href=\'/services\']').click()" style="margin-top:16px; width:100%; border:none; background:transparent; color:#38bdf8; cursor:pointer; font-size:13px; font-weight:500;">View All Services &rarr;</button>
     </div>
     <div class="info-card">
         <h3>Recent Activity</h3>
@@ -515,10 +547,35 @@ async function loadActivities() {
     } catch(e) {}
 }
 
+async function loadDashboardServices() {
+    try {
+        const token = localStorage.getItem('biz_token');
+        const res = await fetch('/api/services', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const el = document.getElementById('dashServiceStatus');
+        if (el && Array.isArray(data)) {
+            const cores = ['Nginx', 'Docker', 'MariaDB', 'Node.js', 'Redis'];
+            const html = data.filter(s => cores.includes(s.name)).slice(0, 5).map(s => `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid #222; padding: 10px 12px; border-radius: 8px; display:flex; align-items:center; justify-content:space-between;">
+                   <div style="display:flex; align-items:center; gap:10px;">
+                     <span style="font-size:18px;">${s.icon || '⚙️'}</span>
+                     <span style="color:#ededed; font-size:13px; font-weight:500;">${s.name}</span>
+                   </div>
+                   <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:${s.installed ? (s.status==='running'?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)') : 'rgba(255,255,255,0.05)'}; color:${s.installed ? (s.status==='running'?'#10b981':'#f59e0b') : '#71717a'}">
+                       ${s.installed ? (s.status==='running'?'RUNNING':'STOPPED') : 'NOT INSTALLED'}
+                   </span>
+                </div>
+            `).join('');
+            el.innerHTML = html || '<div class="empty-state" style="padding:10px; font-size:13px;">No core services found</div>';
+        }
+    } catch(e) {}
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initCharts();
     connectMetricsWS();
     loadActivities();
+    loadDashboardServices();
 });
 </script>
 "##;
