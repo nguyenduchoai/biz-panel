@@ -573,3 +573,234 @@ pub async fn remove_volume(Path(name): Path<String>) -> impl IntoResponse {
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
     }
 }
+
+// ============================================================
+// 🔥 ADVANCED DOCKER FEATURES
+// ============================================================
+
+/// 1. Container Stats WebSocket — Streams realtime CPU/RAM/Net/IO every 2s
+pub async fn container_stats_ws(
+    Path(id): Path<String>,
+    ws: axum::extract::ws::WebSocketUpgrade,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_container_stats_ws(socket, id))
+}
+
+async fn handle_container_stats_ws(mut socket: axum::extract::ws::WebSocket, container_id: String) {
+    use axum::extract::ws::Message;
+    use std::time::Duration;
+
+    let mut interval = tokio::time::interval(Duration::from_secs(2));
+
+    loop {
+        interval.tick().await;
+
+        let output = Command::new("docker")
+            .args(&["stats", "--no-stream", "--format", "{{json .}}", &container_id])
+            .output();
+
+        match output {
+            Ok(o) if o.status.success() => {
+                let data = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                if !data.is_empty() {
+                    if socket.send(Message::Text(data.into())).await.is_err() {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                let _ = socket.send(Message::Text(
+                    json!({"error": "Container not found or not running"}).to_string().into()
+                )).await;
+                break;
+            }
+        }
+    }
+}
+
+/// 2. Docker Registry Login — Authenticate with Docker Hub or private registries
+pub async fn registry_login(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let server = body.get("server").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let username = body.get("username").and_then(|v| v.as_str()).unwrap_or("");
+    let password = body.get("password").and_then(|v| v.as_str()).unwrap_or("");
+
+    if username.is_empty() || password.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Username and password are required"}))).into_response();
+    }
+
+    // Use --password-stdin for security (never pass password as CLI arg)
+    let mut cmd = std::process::Command::new("docker");
+    cmd.args(&["login", "--username", username, "--password-stdin"]);
+    if !server.is_empty() {
+        cmd.arg(server);
+    }
+
+    cmd.stdin(std::process::Stdio::piped());
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    match cmd.spawn() {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                use std::io::Write;
+                let _ = stdin.write_all(password.as_bytes());
+                drop(stdin); // Close stdin so docker can proceed
+            }
+            match child.wait_with_output() {
+                Ok(output) => {
+                    if output.status.success() {
+                        let registry = if server.is_empty() { "Docker Hub" } else { server };
+                        Json(json!({
+                            "message": format!("Successfully logged in to {}", registry),
+                            "registry": registry
+                        })).into_response()
+                    } else {
+                        let err = String::from_utf8_lossy(&output.stderr).to_string();
+                        (StatusCode::UNAUTHORIZED, Json(json!({"error": err.trim()}))).into_response()
+                    }
+                }
+                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+            }
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+/// List configured Docker registry credentials
+pub async fn registry_list() -> impl IntoResponse {
+    // Docker stores auth in ~/.docker/config.json
+    let config_path = "/root/.docker/config.json";
+    if let Ok(content) = std::fs::read_to_string(config_path) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(auths) = v.get("auths").and_then(|a| a.as_object()) {
+                let registries: Vec<serde_json::Value> = auths.keys().map(|k| {
+                    json!({ "server": k, "configured": true })
+                }).collect();
+                return Json(json!(registries)).into_response();
+            }
+        }
+    }
+    Json(json!([])).into_response()
+}
+
+/// Docker Registry Logout
+pub async fn registry_logout(Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let server = body.get("server").and_then(|v| v.as_str()).unwrap_or("");
+    let mut args = vec!["logout"];
+    if !server.is_empty() {
+        args.push(server);
+    }
+    match docker_cmd_check(&args) {
+        Ok(msg) => Json(json!({"message": msg.trim()})).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))).into_response(),
+    }
+}
+
+/// 3. Container Exec WebSocket — Interactive shell inside a running container
+pub async fn container_exec_ws(
+    Path(id): Path<String>,
+    ws: axum::extract::ws::WebSocketUpgrade,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_container_exec_ws(socket, id))
+}
+
+async fn handle_container_exec_ws(mut socket: axum::extract::ws::WebSocket, container_id: String) {
+    use axum::extract::ws::Message;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::process::Command as TokioCommand;
+
+    // Spawn docker exec -i
+    let mut child = match TokioCommand::new("docker")
+        .args(&["exec", "-i", &container_id, "/bin/sh", "-c", "TERM=xterm exec /bin/bash 2>/dev/null || exec /bin/sh"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = socket.send(Message::Text(
+                format!("Error: Failed to exec into container: {}\r\n", e).into()
+            )).await;
+            return;
+        }
+    };
+
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = child.stdout.take().unwrap();
+
+    // Channel to pipe stdout -> ws
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(64);
+
+    // Background task: read stdout and send to channel
+    tokio::spawn(async move {
+        let mut buf = [0u8; 4096];
+        loop {
+            match stdout.read(&mut buf).await {
+                Ok(0) => break,
+                Ok(n) => {
+                    let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                    if tx.send(text).await.is_err() { break; }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    // Main loop: multiplex WS recv + stdout channel
+    loop {
+        tokio::select! {
+            // Data from container stdout -> send to browser
+            Some(text) = rx.recv() => {
+                if socket.send(Message::Text(text.into())).await.is_err() {
+                    break;
+                }
+            }
+            // Data from browser -> send to container stdin
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Text(input))) => {
+                        if stdin.write_all(input.as_bytes()).await.is_err() { break; }
+                        let _ = stdin.flush().await;
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // Cleanup
+    let _ = child.kill().await;
+}
+
+// REST-based container exec (for simple one-off commands)
+pub async fn container_exec(Path(id): Path<String>, Json(body): Json<serde_json::Value>) -> impl IntoResponse {
+    let command = body.get("command").and_then(|v| v.as_str()).unwrap_or("ls -la");
+    let workdir = body.get("workdir").and_then(|v| v.as_str()).unwrap_or("/");
+
+    // Validate container ID
+    let safe_id = regex::Regex::new(r"^[a-zA-Z0-9_.\-]+$").unwrap();
+    if !safe_id.is_match(&id) {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Invalid container ID"}))).into_response();
+    }
+
+    let output = Command::new("docker")
+        .args(&["exec", "-w", workdir, &id, "sh", "-c", command])
+        .output();
+
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+            Json(json!({
+                "exitCode": o.status.code().unwrap_or(-1),
+                "stdout": stdout,
+                "stderr": stderr,
+                "command": command,
+                "workdir": workdir
+            })).into_response()
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    }
+}

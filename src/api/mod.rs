@@ -102,6 +102,13 @@ fn protected_routes() -> Router {
         .route("/docker/networks/:id", delete(docker::remove_network))
         .route("/docker/volumes", get(docker::list_volumes).post(docker::create_volume))
         .route("/docker/volumes/:name", delete(docker::remove_volume))
+        // Docker Advanced: Stats WS, Exec, Registry
+        .route("/docker/containers/:id/stats/ws", get(docker::container_stats_ws))
+        .route("/docker/containers/:id/exec", post(docker::container_exec))
+        .route("/docker/containers/:id/exec/ws", get(docker::container_exec_ws))
+        .route("/docker/registry/login", post(docker::registry_login))
+        .route("/docker/registry/logout", post(docker::registry_logout))
+        .route("/docker/registry/list", get(docker::registry_list))
         // SSL
         .route("/ssl", get(ssl::list_certificates))
         .route("/ssl/:id", get(ssl::get_certificate).delete(ssl::delete_certificate))
